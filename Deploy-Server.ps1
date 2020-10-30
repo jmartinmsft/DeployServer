@@ -3,7 +3,7 @@
 # Modified 2020/10/30
 # Last Modifier:  Jim Martin
 # Project Owner:  Jim Martin
-# Version: v1.0
+# Version: v1.1
 
 # Syntax for running this script:
 #
@@ -749,17 +749,35 @@ while($deployServer -eq $true) {
     $serverVMFileName = Create-VMVariableFile
     
     Add-Type -AssemblyName System.Windows.Forms
-    ## Get the VHD image to copy for the  server
-    Write-Host "Please select the base VHD image" -ForegroundColor Yellow
-    Start-Sleep -Seconds 2
-    while($serverVHD.Length -eq 0) {
-        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the Exchange VHD"}
-        $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
-        $fileBrowser.ShowDialog()
-        [string]$serverVHD = $fileBrowser.FileName
+    $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
+    $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
+    $differencingOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+    $differencingResult= $Host.UI.PromptForChoice("Server deployment script","Do you want to use a differencing disk?", $differencingOption, 1)
+    switch($differencingResult) {
+        0 { ## Get the parent disk
+            Write-Host "Please select the parent VHD disk" -ForegroundColor Yellow
+            Start-Sleep -Seconds 2
+            while($parentVHD.Length -eq 0) {
+                $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the parent VHD"}
+                $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
+                $fileBrowser.ShowDialog()
+                [string]$parentVHD = $fileBrowser.FileName
+            }
+            $parentVHD = $parentVHD.Replace("\","\\")
+            Add-Content -Path $serverVMFileName -Value ('res_0009 = ' + $parentVHD)}
+        1 { ## Get the base VHD
+            Write-Host "Please select the base VHD image" -ForegroundColor Yellow
+            Start-Sleep -Seconds 2
+            while($serverVHD.Length -eq 0) {
+                $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the Exchange VHD"}
+                $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
+                $fileBrowser.ShowDialog()
+                [string]$serverVHD = $fileBrowser.FileName
+            }
+            $serverVHD = $serverVHD.Replace("\","\\")
+            Add-Content -Path $serverVMFileName -Value ('res_0002 = ' + $serverVHD)
+        }
     }
-    $serverVHD = $serverVHD.Replace("\","\\")
-    Add-Content -Path $serverVMFileName -Value ('res_0002 = ' + $serverVHD)
 
     ## Check if ipV6 should be disabled
     $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
@@ -1422,15 +1440,19 @@ foreach($v in $vmServers) {
         $vmDvd | Set-VMDvdDrive -Path $VM_LocalizedStrings.res_0001 #-ControllerNumber $vmDvd.ControllerNumber $vmDvd.ControllerLocation
     }
     Write-Host "COMPLETE"
-        
-    Write-Host "Copying the base Windows VHD to the destination VHD path..." -ForegroundColor Green -NoNewline
-    Copy-Item -Path $VM_LocalizedStrings.res_0002 -Destination $vhdPath
-        
-    Write-Host "COMPLETE"
-    Write-Host "Removing the read-only flag on the VHD file..." -ForegroundColor Green -NoNewline
-    Set-ItemProperty -Path $vhdPath -Name IsReadOnly -Value $False
-    Write-Host "COMPLETE"
-    Write-Host "Adding the new hard drive to the virtual machine $V..." -ForegroundColor Green -NoNewline
+    ## VM disk configuration
+    if($VM_LocalizedStrings.res_0009 -ne $null) {
+        New-VHD -ParentPath $VM_LocalizedStrings.res_0009 -Path $VM_LocalizedStrings.res_0007 -Differencing
+    }
+    else {
+        Write-Host "Copying the base Windows VHD to the destination VHD path..." -ForegroundColor Green -NoNewline
+        Copy-Item -Path $VM_LocalizedStrings.res_0002 -Destination $vhdPath
+        Write-Host "COMPLETE"
+        Write-Host "Removing the read-only flag on the VHD file..." -ForegroundColor Green -NoNewline
+        Set-ItemProperty -Path $vhdPath -Name IsReadOnly -Value $False
+        Write-Host "COMPLETE"
+    }
+        Write-Host "Adding the new hard drive to the virtual machine $V..." -ForegroundColor Green -NoNewline
     if($vmGen -eq 2) {
         Add-VMHardDiskDrive -VMName $v -Path $vhdPath -ControllerType SCSI -ControllerNumber $vmDiskCN -ControllerLocation $vmDiskCL -ComputerName localhost -Confirm:$False
         Set-VMFirmware $v -BootOrder $(Get-VMDvdDrive -VMName $v -ControllerNumber $vmDvd.ControllerNumber -ControllerLocation $vmDvd.ControllerLocation), $(Get-VMHardDiskDrive -VMName $v -ControllerType SCSI -ControllerLocation $vmDiskCL -ControllerNumber $vmDiskCN)
