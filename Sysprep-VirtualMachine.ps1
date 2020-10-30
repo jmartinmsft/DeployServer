@@ -5,6 +5,7 @@
 # Project Owner:  Jim Martin
 # Version: v1.0
 
+# This script should be run once the virtual machine is ready to be deployed
 # Syntax for running this script:
 #
 # .\Sysprep-VirtualMachine.ps1
