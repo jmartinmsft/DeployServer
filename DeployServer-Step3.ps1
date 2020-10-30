@@ -364,7 +364,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             }
             else { $setupSuccess = $true }
         }
-        ## Exchange setup completed
+        ## Exchange setup complete
         Restart-Computer -Force
     }
     1 { ## Adding server as an additional domain controller
