@@ -5,7 +5,7 @@
 # Project Owner:  Jim Martin
 # Version: v1.0
 
-# Script should automatically start when the virtual machine starts
+# Script should automatically start when the virtual machine starts.
 # Syntax for running this script:
 #
 # .\DeployServer-Step3.ps1
