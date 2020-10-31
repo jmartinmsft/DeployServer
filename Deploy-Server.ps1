@@ -1,9 +1,9 @@
-﻿#
+﻿<#
 # Deploy-Server.ps1
-# Modified 2020/10/30
+# Modified 2020/10/31
 # Last Modifier:  Jim Martin
 # Project Owner:  Jim Martin
-# Version: v1.1
+# Version: v1.2
 
 # Syntax for running this script:
 #
@@ -29,7 +29,7 @@
 # arising out of the use of or inability to use the sample scripts or documentation,
 # even if Microsoft has been advised of the possibility of such damages
 ##############################################################################################
-
+#>
 Clear-Host
 function Check-ExchangeVersion {
     $latestVersion = 0
@@ -43,7 +43,8 @@ function Check-ExchangeVersion {
 }
 
 function Get-ExchangeISO {
-Write-Host "Please select the Exchange ISO" -ForegroundColor Yellow
+        Write-Host "Please select the Exchange ISO" -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
         $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\ISO"; Title="Select the Exchange ISO"}
         $fileBrowser.Filter = "ISO (*.iso)| *.iso"
         $fileBrowser.ShowDialog()
@@ -111,6 +112,42 @@ function Get-DomainControllers {
         }
     }
     return ,$ADDomainControllers
+}
+
+function Get-VMParentDisk {
+    $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
+    $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
+    $differencingOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+    $differencingResult= $Host.UI.PromptForChoice("Server deployment script","Do you want to use a differencing disk?", $differencingOption, 1)
+    if($differencingResult -eq 0) {
+        ## Get the parent disk
+        Write-Host "Please select the parent VHD disk" -ForegroundColor Yellow
+        Start-Sleep -Seconds 2
+        while($parentVHD.Length -eq 0) {
+            $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the parent VHD"}
+            $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
+            $fileBrowser.ShowDialog()
+            [string]$parentVHD = $fileBrowser.FileName
+        }
+        $parentVHD = $parentVHD.Replace("\","\\")
+        Add-Content -Path $serverVMFileName -Value ('res_0009 = ' + $parentVHD)
+        return $true
+    }
+    else {return $false}
+}
+
+function Get-VMBaseDisk {
+    ## Get the base VHD
+    Write-Host "Please select the base VHD image" -ForegroundColor Yellow
+    Start-Sleep -Seconds 2
+    while($serverVHD.Length -eq 0) {
+        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the Exchange VHD"}
+        $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
+        $fileBrowser.ShowDialog()
+        [string]$serverVHD = $fileBrowser.FileName
+    }
+    $serverVHD = $serverVHD.Replace("\","\\")
+    Add-Content -Path $serverVMFileName -Value ('res_0002 = ' + $serverVHD)    
 }
 
 function Get-NewVMGeneration {
@@ -211,6 +248,7 @@ function Prepare-ExchangeConnect {
 }
 
 function Connect-Exchange {
+    Write-Host "Connecting to Exchange remote PowerShell session..." -ForegroundColor Green
     try { Import-PSSession (New-PSSession -Name ExchangeShell -ConfigurationName Microsoft.Exchange -ConnectionUri https://$exchServer/PowerShell -AllowRedirection -Authentication Basic -Credential $credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck) -ErrorAction Ignore) -AllowClobber -ErrorAction Ignore}
     catch { Write-Warning "Connection attempt to $exchServer failed. Retrying..."
         Start-Sleep -Seconds 5
@@ -648,7 +686,7 @@ if($forestInstallType -eq 1 -or $newInstallType -eq 0) {
             $domain = $credential.UserName.Substring($credential.UserName.IndexOf("@")+1)
             $validDomain =$false
             while($validDomain -eq $false) {
-                $domainController = (Resolve-DnsName $domain -Type SOA -Server $tempDNS -ErrorAction Ignore).IP4Address
+                [string]$domainController = (Resolve-DnsName $domain -Type SOA -Server $tempDNS -ErrorAction Ignore).IP4Address
                 if($domainController -eq $tempDNS) {
                     $validDomain = $true
                     if(Check-Credentials) {
@@ -670,7 +708,7 @@ if($forestInstallType -eq 1 -or $newInstallType -eq 0) {
             Start-Sleep -Seconds 3
         }
     }
-    $domainController = (Resolve-DnsName $domain -Type SRV -Server $tempDNS -ErrorAction Ignore).PrimaryServer
+    [string]$domainController = (Resolve-DnsName $domain -Type SRV -Server $tempDNS -ErrorAction Ignore).PrimaryServer
     $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($credential.Password)            
     $Password = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
 
@@ -705,7 +743,7 @@ $switches = Get-VMSwitch | ft Name,SwitchType
 while($deployServer -eq $true) {
     $adapterCheck = $true
     while($adapterCheck) {
-        $ServerName = Read-HostWithColor "Enter the name of the server to deploy: "
+        [string]$ServerName = Read-HostWithColor "Enter the name of the server to deploy: "
         $serverOnline = $false
         ## Do not recover a server with multiple NICs, install process currently cannot handle that scenario
         if(Get-VM $ServerName -ErrorAction Ignore) {
@@ -749,35 +787,6 @@ while($deployServer -eq $true) {
     $serverVMFileName = Create-VMVariableFile
     
     Add-Type -AssemblyName System.Windows.Forms
-    $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
-    $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
-    $differencingOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
-    $differencingResult= $Host.UI.PromptForChoice("Server deployment script","Do you want to use a differencing disk?", $differencingOption, 1)
-    switch($differencingResult) {
-        0 { ## Get the parent disk
-            Write-Host "Please select the parent VHD disk" -ForegroundColor Yellow
-            Start-Sleep -Seconds 2
-            while($parentVHD.Length -eq 0) {
-                $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the parent VHD"}
-                $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
-                $fileBrowser.ShowDialog()
-                [string]$parentVHD = $fileBrowser.FileName
-            }
-            $parentVHD = $parentVHD.Replace("\","\\")
-            Add-Content -Path $serverVMFileName -Value ('res_0009 = ' + $parentVHD)}
-        1 { ## Get the base VHD
-            Write-Host "Please select the base VHD image" -ForegroundColor Yellow
-            Start-Sleep -Seconds 2
-            while($serverVHD.Length -eq 0) {
-                $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the Exchange VHD"}
-                $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
-                $fileBrowser.ShowDialog()
-                [string]$serverVHD = $fileBrowser.FileName
-            }
-            $serverVHD = $serverVHD.Replace("\","\\")
-            Add-Content -Path $serverVMFileName -Value ('res_0002 = ' + $serverVHD)
-        }
-    }
 
     ## Check if ipV6 should be disabled
     $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
@@ -821,10 +830,10 @@ while($deployServer -eq $true) {
         ## Get the number of processors to assign to the VM
         $vmCPU = Get-NewVMCPU
         Add-Content -Path $serverVMFileName -Value ('res_0006 = ' + $vmCPU)
-        ## Prompt where to save the VHD for the Exchange VM
+        ## Prompt where to save the VHD for the VM
         $vhdPath = Get-NewVMPath
         Add-Content -Path $serverVMFileName -Value ('res_0007 = ' + $vhdPath)
-        ## Prompt the user for an Exchange server to setup a remote PowerShell session
+        if(!(Get-VMParentDisk)) { Get-VMBaseDisk }
         $generationResult = Get-NewVMGeneration
         Add-Content -Path $serverVMFileName -Value ('res_0008 = ' + $generationResult)
         ## And also add info for the server install
@@ -870,6 +879,7 @@ while($deployServer -eq $true) {
                 while($vhdPath.Length -eq 0) {
                     $vhdPath = Get-NewVMPath
                 }
+                if(!(Get-VMParentDisk)) { Get-VMBaseDisk }
                 Add-Content -Path $serverVMFileName -Value ('res_0007 = ' + $vhdPath)
                 ## Prompt the user for an Exchange server to setup a remote PowerShell session
                 $generationResult = Get-NewVMGeneration
@@ -1142,21 +1152,25 @@ while($deployServer -eq $true) {
             switch($exchVersion) {
                 0 {
                     Add-Content -Path $serverVarFile -Value ('res_0003 = 0')
-                    Write-Host "Geting the Exchange 2013 ISO..." -ForegroundColor Green -NoNewline
                 }
                 1 {
                     Add-Content -Path $serverVarFile -Value ('res_0003 = 1') 
-                    Write-Host "Geting the Exchange 2016 ISO..." -ForegroundColor Green -NoNewline
                     }
                 2 {
                     Add-Content -Path $serverVarFile -Value ('res_0003 = 2') 
-                    Write-Host "Geting the Exchange 2019 ISO..." -ForegroundColor Green -NoNewline
                 }
             }
             ## Get the ISO for Exchange install
-            Start-Sleep -Seconds 2
             Get-ExchangeISO
             Add-Content -Path $serverVarFile -Value ('res_0005 = ' + $null)
+            ## Get the VHD disk information
+            Write-Host "Determining VM disk settings..." -ForegroundColor Green
+            [string]$vhdParentPath = (Get-VHD (Get-VMHardDiskDrive -VMName $ServerName)[0].Path).ParentPath
+            if($vhdParentPath.Length -gt 0) {
+                Write-Warning "Current configuration uses a parent disk."
+                Get-VMParentDisk
+            }
+            else { Get-VMBaseDisk }
             ## Clearing Edge Sync credentials to allow server to be recovered that is part of an Edge subscription
             Write-Host "Removing any Edge Sync credentials that may be present..." -ForegroundColor Green -NoNewline
             $dc = (Get-ExchangeServer $ServerName).OriginatingServer
@@ -1302,9 +1316,7 @@ while($deployServer -eq $true) {
     }
     
     ## Finalize the psd1 file
-    #Add-Content -Path $serverVarFile -Value ('res_0022 = ' + $exchServer)
-    #Add-Content -Path $serverVarFile -Value '###PSLOC'
-    #Add-Content -Path $serverVarFile -Value "'@"
+    Add-Content -Path $serverVarFile -Value ('res_0022 = ' + $exchServer)
     
     Add-Content -Path $serverVMFileName -Value '###PSLOC'
     Add-Content -Path $serverVMFileName -Value "'@"
@@ -1405,6 +1417,7 @@ foreach($v in $vmServers) {
             Set-VM -ProcessorCount $VM_LocalizedStrings.res_0006 -Name $v
             Write-Host "COMPLETE"
             $vhdPath = $VM_LocalizedStrings.res_0007
+            $vhdParentPath = $VM_LocalizedStrings.res_0009
             if($vmGen -eq 1) {
                 $vmDiskCL = 0
                 $vmDiskCN = 0
@@ -1421,9 +1434,11 @@ foreach($v in $vmServers) {
             Write-Host "Updating VM disk configuration..." -ForegroundColor Green
             Write-Host "Deleting the existing VHD file..." -ForegroundColor Green -NoNewline
             $vmHDD = (Get-VMHardDiskDrive -VMName $v)[0]
+            [string]$vhdPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v)[0].Path).Path
+            [string]$vhdParentPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v)[0].Path).ParentPath
             $vmDiskCL = $vmHDD[0].ControllerLocation
             $vmDiskCN = $vmHDD[0].ControllerNumber
-            [string]$vhdPath = $vmHDD[0].Path
+            #[string]$vhdPath = $vmHDD[0].Path
             Remove-Item -Path $vhdPath -Force
             Write-Host "COMPLETE"
             Write-Host "Removing the orginal hard drive from the virtual machine $v..." -ForegroundColor Green -NoNewline
@@ -1441,8 +1456,8 @@ foreach($v in $vmServers) {
     }
     Write-Host "COMPLETE"
     ## VM disk configuration
-    if($VM_LocalizedStrings.res_0009 -ne $null) {
-        New-VHD -ParentPath $VM_LocalizedStrings.res_0009 -Path $VM_LocalizedStrings.res_0007 -Differencing
+    if($vhdParentPath.Length -gt 0) {
+        New-VHD -ParentPath $vhdParentPath -Path $vhdPath -Differencing
     }
     else {
         Write-Host "Copying the base Windows VHD to the destination VHD path..." -ForegroundColor Green -NoNewline
