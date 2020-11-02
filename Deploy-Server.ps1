@@ -3,7 +3,7 @@
 # Modified 2020/10/31
 # Last Modifier:  Jim Martin
 # Project Owner:  Jim Martin
-# Version: v1.2
+# Version: v1.3
 
 # Syntax for running this script:
 #
@@ -40,6 +40,78 @@ function Check-ExchangeVersion {
         }
     }
     return $latestVersion
+}
+function Move-MailboxDatabase {
+    param ( [Parameter(Mandatory=$true)][string]$database )
+    $stopDbCheck = $false
+    $bestEffort = $false
+    while($stopDbCheck -eq $false) {
+        $copyStatus = Get-MailboxDatabaseCopyStatus $database | Where {$_.Status -ne "Mounted"}
+        [string]$healthyCopy = $null
+        foreach($c in $copyStatus) {
+            if($c.ContentIndexState -eq "Healthy" -and $c.CopyQueueLength -eq 0 -and $c.Status -eq "Healthy") {
+                $healthyCopy = $c.Name
+                $healthyCopy = $healthyCopy.Substring($healthyCopy.IndexOf("\")+1)
+                $stopDbCheck = $true
+                break
+            }
+        }
+        if($healthyCopy.Length -eq 0) {
+            Write-Warning "No server has a healthy copy to activate."
+            Start-Sleep -Seconds 2
+            return $false
+        }
+    }
+    Write-Host "Moving database to $healthyCopy" -ForegroundColor Green
+    $moveSuccess = (Move-ActiveMailboxDatabase $database -ActivateOnServer $healthyCopy).Status
+    $moveSuccess = ($moveSuccess | Out-String).Trim()
+    if($moveSuccess -eq "Succeeded") {
+        Sync-AdConfigPartition
+        return $true 
+    }
+    return $false
+}
+function Move-MailboxDatabaseBestEffort {
+    param ( [Parameter(Mandatory=$true)][string]$database)
+    $stopDbCheck = $false
+    $bestEffort = $false
+    while($stopDbCheck -eq $false) {
+        $copyStatus = Get-MailboxDatabaseCopyStatus $database | Where {$_.Status -ne "Mounted"}
+        [string]$healthyCopy = $null
+        foreach($c in $copyStatus) {
+            if($c.Status -eq "Healthy") {
+                $healthyCopy = $c.Name
+                $healthyCopy = $healthyCopy.Substring($healthyCopy.IndexOf("\")+1)
+                $stopDbCheck = $true
+                break
+            }
+        }
+        if($healthyCopy.Length -eq 0) {
+            Write-Warning "No server has a healthy copy to activate."
+            Start-Sleep -Seconds 2
+            return $false
+        }
+    }
+    if($healthyCopy -ne $null) {
+        Write-Host "Moving database to $healthyCopy with best effort" -ForegroundColor Green
+        if(Test-Connection $healthyCopy -Count 1) {
+            $moveSuccess = (Move-ActiveMailboxDatabase $database -SkipClientExperienceChecks -MountDialOverride:BestEffort -SkipHealthChecks -Confirm:$False -ErrorAction SilentlyContinue).Status
+        }
+        else {
+            if((Get-MailboxDatabaseCopyStatus $database).Status -notcontains "Mounted") {
+                $moveSuccess = (Move-ActiveMailboxDatabase $database -Confirm:$False -SkipActiveCopyChecks -MountDialOverride:BestEffort -SkipClientExperienceChecks).Status
+            }
+            else {
+                $moveSuccess = (Move-ActiveMailboxDatabase $database -Confirm:$False -SkipActiveCopyChecks -SkipClientExperienceChecks -MountDialOverride:BestEffort).Status
+            }
+        }
+        $moveSuccess = ($moveSuccess | Out-String).Trim()
+        if($moveSuccess -eq "Succeeded") { 
+            Sync-AdConfigPartition
+            return $true
+        }
+    }
+    return $false
 }
 
 function Get-ExchangeISO {
@@ -311,57 +383,6 @@ function PressAnyKeyToContinue ($Message=”Unable to move a mailbox database. P
     Write-Host -NoNewLine $Message -ForegroundColor Yellow
     $null = $Host.UI.RawUI.ReadKey(“NoEcho,IncludeKeyDown”)
     Write-Host “”
-}
-
-function Move-MailboxDbs {
-    ## Attempt to move an active mailbox database copy to another node in the DAG
-    param ( [Parameter(Mandatory=$true)][string]$database )
-    Write-Host "Checking for an available server to move active database $database..." -ForegroundColor Green -NoNewline
-    ## Verifying there is a database copy ready to be activated
-    $serverReady = $false
-    while($serverReady -eq $false) {
-        $serverReady = Get-QueueLengths $database
-        if($serverReady -eq $false) { Start-Sleep -Seconds 60 }
-        Write-Host "..." -ForegroundColor Green -NoNewline
-    }
-    Write-Host "COMPLETE"
-    ## Attempting to move the database
-    Write-Host "Moving $database to another server..." -ForegroundColor Green -NoNewline
-    $error.Clear()
-    if($serverOnline -eq $true) {
-        if((Move-ActiveMailboxDatabase $database -Confirm:$False -DomainController $domainController).Status -ne "Succeeded") {
-            PressAnyKeyToContinue
-        }
-    }
-    else {
-        if((Get-MailboxDatabaseCopyStatus $database).Status -notcontains "Mounted") {
-            Write-Host "FAILED" -ForegroundColor Red
-            Write-Host "The database is currently offline and attempting to move the database..." -ForegroundColor Green -NoNewline
-            if((Move-ActiveMailboxDatabase $database -Confirm:$False -DomainController $domainController -SkipActiveCopyChecks -SkipLagChecks -MountDialOverride:BestEffort -SkipClientExperienceChecks).Status -ne "Succeeded") {
-                PressAnyKeyToContinue
-            }
-            else {
-                if((Move-ActiveMailboxDatabase $database -Confirm:$False -DomainController $domainController -SkipActiveCopyChecks -SkipClientExperienceChecks).Status -ne "Succeeded") {
-                    PressAnyKeyToContinue
-                }
-            }
-        }
-    }
-    Write-Host "COMPLETE"
-    Sync-AdConfigPartition
-}
-
-function Get-QueueLengths {
-    ## Check the database copies for activation
-    param ( [Parameter(Mandatory=$true)][string]$mailboxDB )
-    Get-MailboxDatabaseCopyStatus $mailboxDB -DomainController $domainController  | where { $_.Status -ne "Mounted" } | ForEach-Object {
-        if($_.CopyQueueLength -eq 0 -and $_.ReplayQueueLength -eq 0) {
-            return $true
-            break
-        }
-        #else { Start-Sleep -Seconds 60 }
-    }
-    return $false
 }
 
 function Sync-AdConfigPartition {
@@ -1170,7 +1191,11 @@ while($deployServer -eq $true) {
                 Write-Warning "Current configuration uses a parent disk."
                 Get-VMParentDisk
             }
-            else { Get-VMBaseDisk }
+            else { ## Check current VM generation before prompting
+                [int]$vmGen = (Get-VM $ServerName).Generation
+                Write-Warning "$ServerName is currently Generation $vmGen."
+                Get-VMBaseDisk 
+            }
             ## Clearing Edge Sync credentials to allow server to be recovered that is part of an Edge subscription
             Write-Host "Removing any Edge Sync credentials that may be present..." -ForegroundColor Green -NoNewline
             $dc = (Get-ExchangeServer $ServerName).OriginatingServer
@@ -1222,7 +1247,27 @@ while($deployServer -eq $true) {
                         while($dbMounted -eq $true) {
                             $dbMounted = Get-MailboxDatabaseStatus $_.Name 
                             if($dbMounted -eq $true) {
-                                Move-MailboxDbs $_.Name
+                                [int]$moveAttempt = 0
+                                $moveComplete = (Move-MailboxDatabase $_.Name)
+                                while($moveAttempt -lt 6) {
+                                    if($moveComplete -eq $false) {
+                                        if ($moveAttempt -eq 5) {
+                                            Write-Warning "Failed to move the database copy to another server."
+                                            exit
+                                        }
+                                        Get-MailboxDatabaseCopyStatus $_.Name | ft Name,Status,CopyQueueLength,ReplayQueueLength,ContentIndexState
+                                        $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
+                                        $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
+                                        $moveOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+                                        $moveResult= $Host.UI.PromptForChoice("Server deployment script","Do you want to attempt to move the database with best effort?", $moveOption, 0)
+                                        if($moveResult -eq 0) {
+                                            Start-Sleep -Seconds 3
+                                            $moveAttempt++
+                                            $moveComplete = (Move-MailboxDatabaseBestEffort $_.Name)
+                                        }
+                                    }
+                                    else { break }
+                                }
                             }
                         }
                         ## Remove existing database copies and then remove server from DAG
@@ -1291,7 +1336,7 @@ while($deployServer -eq $true) {
                     Write-Host "Failed to remove $ServerName from $DagName. You can attempt to resolve the issue and try again later." -ForegroundColor Red
                     ## Script failed to remove the server from the DAG so we are removing it from the VM list and deleting files
                     $vmServers.Remove($ServerName)
-                    Remove-Item -Path c:\Temp\$ServerName* -Force ## what do we do about database copies that may have been removed?
+                    Remove-Item -Path c:\Temp\$ServerName* -Force
                 }
             }
             else {
@@ -1438,7 +1483,6 @@ foreach($v in $vmServers) {
             [string]$vhdParentPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v)[0].Path).ParentPath
             $vmDiskCL = $vmHDD[0].ControllerLocation
             $vmDiskCN = $vmHDD[0].ControllerNumber
-            #[string]$vhdPath = $vmHDD[0].Path
             Remove-Item -Path $vhdPath -Force
             Write-Host "COMPLETE"
             Write-Host "Removing the orginal hard drive from the virtual machine $v..." -ForegroundColor Green -NoNewline
