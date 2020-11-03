@@ -1,11 +1,10 @@
-﻿#
+﻿<#
 # Sysprep-VirtualMachine.ps1
 # Modified 2020/10/30
 # Last Modifier:  Jim Martin
 # Project Owner:  Jim Martin
-# Version: v1.0
+# Version: v1.1
 
-# This script should be run once the virtual machine is ready to be deployed
 # Syntax for running this script:
 #
 # .\Sysprep-VirtualMachine.ps1
@@ -30,7 +29,13 @@
 # arising out of the use of or inability to use the sample scripts or documentation,
 # even if Microsoft has been advised of the possibility of such damages
 ##############################################################################################
-
+#>
+##Check the unattend XML file before continuing
+if((Select-String -Path C:\Temp\unattend.xml -Pattern "ProductKey") -like "*XXXXX*") {
+    Write-Warning "You must modify the Product Key in the unattend XML before running this script."
+    Start-Sleep -Seconds 5
+    break
+}
 ## Create psd1 with variables for the other scripts to use
 Write-Host "Storing information so we can pull data needed to build the Exchange server..." -ForegroundColor Green
 $stringsFile = "c:\Temp\Sysprep-strings.psd1"
