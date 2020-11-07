@@ -325,11 +325,11 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         }
         Write-Host "COMPLETE"
         ## Check if the previous versions of Exchange are installed
-        if($ExchangeInstall_LocalizedStrings.res_0033 -ne $null) {
+        if($ExchangeInstall_LocalizedStrings.res_0034 -ne $null) {
             Write-Host "Checking for previous versions of Exchange in the organization..." -ForegroundColor Green -NoNewline
             $exReady = $false
             ## Get the version of Exchange that must be present
-            [int]$checkForVersion = $ExchangeInstall_LocalizedStrings.res_0033
+            [int]$checkForVersion = $ExchangeInstall_LocalizedStrings.res_0034
             while($exReady -eq $false) {
                 ## Get a list of Exchange servers
                 $exchServers = Get-ADObject -LDAPFilter "(&(objectClass=msExchExchangeServer)(serverRole=*))" -SearchBase $exchContainer -SearchScope Subtree -Properties serialNumber -ErrorAction Ignore
