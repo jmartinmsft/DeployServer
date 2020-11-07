@@ -1437,7 +1437,7 @@ foreach($v in $vmServers) {
     if($versionCheck.Count -gt 0) {
         $version = ($versionCheck | Measure-Object -Maximum).Maximum
         ## Note the last version of Exchange that this server must check exists
-        Add-Content -Path $serverVarFile -Value ('res_0033 = '+ $version)
+        Add-Content -Path $serverVarFile -Value ('res_0034 = '+ $version)
     }
     ## Finalize the psd1 file
     
