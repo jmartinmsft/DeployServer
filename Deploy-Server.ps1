@@ -730,8 +730,7 @@ if($forestInstallType -eq 1 -or $newInstallType -eq 0) {
         }
     }
     [string]$domainController = (Resolve-DnsName $domain -Type SRV -Server $tempDNS -ErrorAction Ignore).PrimaryServer
-    $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($credential.Password)            
-    $Password = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+    $Password = $credential.GetNetworkCredential().Password
 
     ## Adding hosts file entries to ensure proper name resolution
     $hostsFile = Get-Content C:\Windows\System32\drivers\etc\hosts
