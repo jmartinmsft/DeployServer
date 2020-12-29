@@ -358,7 +358,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                 Write-Host "Attempting to synchronize Active Directory..." -ForegroundColor Green
                 Start-Sleep -Seconds 10
                 $domainController = $ExchangeInstall_LocalizedStrings.res_0031
-                $adDomain = (Get-ADDomain -ErrorAction Ignore  -ErrorAction Ignore).DistinguishedName
+                $adDomain = (Get-ADDomain -ErrorAction Ignore).DistinguishedName
                 Force-ADSync $domainController $adDomain
                 Reboot-FailedSetup
             }
