@@ -32,7 +32,18 @@
 ##############################################################################################
 
 ## Functions for Exchange configuration
-function Sync-AD {
+function Install-KB5000871 {
+    ## Download and install March 2021 Security Update for Exchange 2013 CU23
+    Write-Host "Downloading Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
+    Invoke-WebRequest -Uri "https://download.microsoft.com/download/2/1/f/21f38065-7269-4f5f-9ed6-6844f6786a98/Exchange2013-KB5000871-x64-en.msp" -OutFile "C:\Temp\Exchange2013-KB5000871-x64-en.msp" 
+    Write-Host "Installing Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
+    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5000871-x64-en.msp /passive /norestart"
+    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5000871)"} -ErrorAction SilentlyContinue) {
+        Write-Host "..." -ForegroundColor Green -NoNewline
+        Start-Sleep -Seconds 10
+    }
+    Write-Host "COMPLETE"
+}function Sync-AD {
     Get-ADReplicationConnection -Filter * -ErrorAction Ignore | ForEach-Object {
         [string]$fromServer = ($_.ReplicateFromDirectoryServer).Substring(20)
         $fromServer = $fromServer.Substring(0, $fromServer.IndexOf(","))
@@ -434,6 +445,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                         }
                     }
                     2 { ## Standalone server install
+                        ## Install critical March 2021 security update
+                        if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-KB5000871}
                         Write-Host "Server installation complete"
                         Restart-Computer
                     }
@@ -441,6 +454,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             }
             1 { ## This was a recover server and must determine whether a DAG member or standalone server
                 if($DagName -eq $null) {
+                    ## Install critical March 2021 security update
+                    if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-KB5000871}
                     Write-Host "Server installation complete"
                     Start-Sleep -Seconds 5
                     Restart-Computer
@@ -510,6 +525,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             }
         }
         ## Exchange server setup is complete
+        ## Install critical March 2021 security update
+        if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-KB5000871}
         Restart-Computer
     }
     1{ ## Finalize DC setup
@@ -537,5 +554,3 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         }
     }
 }
-
-

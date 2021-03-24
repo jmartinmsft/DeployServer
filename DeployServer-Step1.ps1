@@ -121,7 +121,7 @@ Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 Write-Host "COMPLETE"
 ## Disable IE Enhance Security Configuration
 Write-Host "Disabling IE Enhanced security configuration..." -ForegroundColor Green -NoNewline
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -Name "IsInstalled" -Value 0
+Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -Name "IsInstalled" -Value 0 -ErrorAction Ignore
 Write-Host "COMPLETE"
 $domainController = $ExchangeInstall_LocalizedStrings.res_0031
 ## Install ADDS if the server is a domain controller
