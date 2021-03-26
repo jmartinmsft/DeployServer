@@ -190,7 +190,7 @@ function Get-VMParentDisk {
     $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
     $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
     $differencingOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
-    $differencingResult= $Host.UI.PromptForChoice("Server deployment script","Do you want to use a differencing disk?", $differencingOption, 1)
+    $differencingResult= $Host.UI.PromptForChoice("Server deployment script","Do you want to use a differencing disk?", $differencingOption, 0)
     if($differencingResult -eq 0) {
         ## Get the parent disk
         Write-Host "Please select the parent VHD disk" -ForegroundColor Yellow
@@ -951,7 +951,7 @@ while($deployServer -eq $true) {
                         $p = @()
                         $output = "DiskNumber,PartitionNumber,AccessPaths"
                         $output | Out-File "C:\Temp\DiskInfo.csv" -Force
-                        Get-Disk | where {$_.Number -gt 0} | ForEach-Object { $p = Get-Partition -DiskNumber $_.Number | Where {$_.AccessPaths -ne $null} | Select DiskNumber,PartitionNumber,AccessPaths}
+                        Get-Disk | where {$_.Number -gt 0} | ForEach-Object { $p = Get-Partition -DiskNumber $_.Number | Where {$_.AccessPaths -ne $null -and $_.Type -eq "Basic"} | Select DiskNumber,PartitionNumber,AccessPaths}
                         $p | foreach-object { 
                             $diskNumber = $p.DiskNumber
                             $partitionNumber = $p.PartitionNumber
