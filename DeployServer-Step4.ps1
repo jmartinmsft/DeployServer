@@ -33,12 +33,13 @@
 
 ## Functions for Exchange configuration
 function Install-KB5000871 {
-    ## Download and install March 2021 Security Update for Exchange 2013 CU23
+    ## Download and install May 2021 Security Update for Exchange 2013 CU23
     Write-Host "Downloading Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Invoke-WebRequest -Uri "https://download.microsoft.com/download/2/1/f/21f38065-7269-4f5f-9ed6-6844f6786a98/Exchange2013-KB5000871-x64-en.msp" -OutFile "C:\Temp\Exchange2013-KB5000871-x64-en.msp" 
+    Invoke-WebRequest -Uri "https://download.microsoft.com/download/6/d/b/6db9b354-306c-4ad6-8cc2-c07ca896a4b7/Exchange2013-KB5003435-x64-en.msp" -OutFile "C:\Temp\Exchange2013-KB5003435-x64-en.msp" 
     Write-Host "Installing Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5000871-x64-en.msp /passive /norestart"
-    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5000871)"} -ErrorAction SilentlyContinue) {
+    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5003435-x64-en.msp /passive /norestart"
+    Start-Sleep -Seconds 10
+    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5003435)"} -ErrorAction SilentlyContinue) {
         Write-Host "..." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 10
     }
