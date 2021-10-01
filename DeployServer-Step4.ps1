@@ -1,50 +1,59 @@
-﻿#
-# DeployServer-Step4.ps1
-# Modified 2020/10/30
-# Last Modifier:  Jim Martin
-# Project Owner:  Jim Martin
-# Version: v1.0
-
-# Script should automatically start when the virtual machine starts.
-# Syntax for running this script:
-#
-# .\DeployServer-Step4.ps1
-#
-#
-##############################################################################################
-#
-# This script is not officially supported by Microsoft, use it at your own risk.
-# Microsoft has no liability, obligations, warranty, or responsibility regarding
-# any result produced by use of this file.
-#
-##############################################################################################
-# The sample scripts are not supported under any Microsoft standard support
-# program or service. The sample scripts are provided AS IS without warranty
-# of any kind. Microsoft further disclaims all implied warranties including, without
-# limitation, any implied warranties of merchantability or of fitness for a particular
-# purpose. The entire risk arising out of the use or performance of the sample scripts
-# and documentation remains with you. In no event shall Microsoft, its authors, or
-# anyone else involved in the creation, production, or delivery of the scripts be liable
-# for any damages whatsoever (including, without limitation, damages for loss of business
-# profits, business interruption, loss of business information, or other pecuniary loss)
-# arising out of the use of or inability to use the sample scripts or documentation,
-# even if Microsoft has been advised of the possibility of such damages
-##############################################################################################
-
+﻿<#
+// DeployServer-Step1.ps1
+// Modified 2021/10/01
+// Last Modifier:  Jim Martin
+// Project Owner:  Jim Martin
+// Version: v1.2
+//
+// Script should automatically start when the virtual machine starts.
+// Syntax for running this script:
+//
+// .\DeployServer-Step4.ps1
+//
+//**********************************************************************​
+//***********************************************************************
+//
+// Copyright (c) 2018 Microsoft Corporation. All rights reserved.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+//**********************************************************************​
+#>
+Write-Host -ForegroundColor Yellow '//***********************************************************************'
+Write-Host -ForegroundColor Yellow '//'
+Write-Host -ForegroundColor Yellow '// Copyright (c) 2018 Microsoft Corporation. All rights reserved.'
+Write-Host -ForegroundColor Yellow '//'
+Write-Host -ForegroundColor Yellow '// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR'
+Write-Host -ForegroundColor Yellow '// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,'
+Write-Host -ForegroundColor Yellow '// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE'
+Write-Host -ForegroundColor Yellow '// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER'
+Write-Host -ForegroundColor Yellow '// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,'
+Write-Host -ForegroundColor Yellow '// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN'
+Write-Host -ForegroundColor Yellow '// THE SOFTWARE.'
+Write-Host -ForegroundColor Yellow '//'
+Write-Host -ForegroundColor Yellow '//**********************************************************************​'
+Start-Sleep -Seconds 2
 ## Functions for Exchange configuration
-function Install-KB5000871 {
-    ## Download and install May 2021 Security Update for Exchange 2013 CU23
+function Install-Exch2013SU {
+    ## Download and install July 2021 Security Update for Exchange 2013 CU23
     Write-Host "Downloading Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Invoke-WebRequest -Uri "https://download.microsoft.com/download/6/d/b/6db9b354-306c-4ad6-8cc2-c07ca896a4b7/Exchange2013-KB5003435-x64-en.msp" -OutFile "C:\Temp\Exchange2013-KB5003435-x64-en.msp" 
+    Invoke-WebRequest -Uri "https://download.microsoft.com/download/2/e/0/2e0bcd42-e604-4bc0-afce-460e05189a2e/Exchange2013-KB5004778-x64-en.msp" -OutFile "C:\Temp\Exchange2013-KB5004778-x64-en.msp" 
     Write-Host "Installing Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5003435-x64-en.msp /passive /norestart"
+    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5004778-x64-en.msp /passive /norestart"
     Start-Sleep -Seconds 10
-    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5003435)"} -ErrorAction SilentlyContinue) {
+    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5004778)"} -ErrorAction SilentlyContinue) {
         Write-Host "..." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 10
     }
     Write-Host "COMPLETE"
-}function Sync-AD {
+}
+function Sync-AD {
     Get-ADReplicationConnection -Filter * -ErrorAction Ignore | ForEach-Object {
         [string]$fromServer = ($_.ReplicateFromDirectoryServer).Substring(20)
         $fromServer = $fromServer.Substring(0, $fromServer.IndexOf(","))
@@ -322,6 +331,61 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Wi
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "DefaultUserName" -Force | Out-Null
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "DefaultDomainName" -Force | Out-Null
 Write-Host "COMPLETE"
+## Add PowerShell functions to profile
+$SyncAdConfig = @'
+function Sync-AdConfigPartition {
+	Get-ADReplicationConnection -Filter * | ForEach-Object {
+	        [string]$fromServer = ($_.ReplicateFromDirectoryServer).Substring(20)
+        	$fromServer = $fromServer.Substring(0, $fromServer.IndexOf(","))
+        	[string]$toServer = ($_.ReplicateToDirectoryServer).Substring(3)
+	        $toServer = $toServer.Substring(0, $toServer.IndexOf(","))
+        	[string]$configPartition = ($_.ReplicateToDirectoryServer).Substring($_.ReplicateToDirectoryServer.IndexOf("CN=Configuration"))
+		repadmin /replicate $toServer $fromServer $configPartition
+	}
+}
+'@
+$SyncAdDir = @'
+function Sync-AdDirectoryPartition {
+    Get-ADReplicationConnection -Filter * | ForEach-Object {
+        [string]$fromServer = ($_.ReplicateFromDirectoryServer).Substring(20)
+        $fromServer = $fromServer.Substring(0, $fromServer.IndexOf(","))
+        [string]$toServer = ($_.ReplicateToDirectoryServer).Substring(3)
+        $toServer = $toServer.Substring(0, $toServer.IndexOf(","))
+	$partition = (Get-ADDomain).DistinguishedName
+	repadmin /replicate $toServer $fromServer $partition /force 
+   }
+}
+'@
+$SetLegDN = @'
+function Set-LegacyExchangeDN { 
+	Param(
+        [Parameter(Mandatory=$true)] [string]$Alias,
+        [Parameter(Mandatory=$true)] [string]$legacyExchDN
+    )
+	Get-AdObject -Filter "mailNickname -eq '$Alias'" | Set-ADObject -Replace @{legacyExchangeDN = $legacyExchDN }
+}
+'@
+$NewLinkedMbx = @'
+function New-LinkedMailbox {
+    Param(
+        [Parameter(Mandatory=$true)] [string]$FirstName,
+        [Parameter(Mandatory=$true)] [string]$LastName,
+        [Parameter(Mandatory=$true)] [string]$Alias
+    )
+    $p = Read-Host "Enter the password for the user: " -AsSecureString
+    $cred = Get-Credential -UserName administrator@user.local -Message "New user account"
+    $name = "$FirstName $LastName"
+    $upn = "$Alias@thejimmartin.com"
+    New-ADUser -Name $name -DisplayName $name -GivenName $FirstName -Surname $LastName -SamAccountName $Alias -UserPrincipalName $upn -Path "OU=LabUsers,DC=user,DC=local" -AccountPassword $p -Enabled:$True -Server user-dc1.user.local -Credential $cred
+    $upn = "$alias@resource.local"
+    New-Mailbox -Name $name -DisplayName $name -FirstName $FirstName -LastName $LastName -Alias $Alias -SamAccountName $Alias -OrganizationalUnit "OU=LabUsers,DC=resource,DC=local" -LinkedCredential $cred -LinkedDomainController user-dc1.user.local -UserPrincipalName $upn -LinkedMasterAccount $Alias
+}
+'@
+if(-not(Get-Item $profile -ErrorAction Ignore)){ New-Item $profile -ItemType File -Force }
+if(-not(Select-String -Path $profile -Pattern "Sync-AdConfigPartition")) {$SyncAdConfig | Out-File $profile -Append }
+if(-not(Select-String -Path $profile -Pattern "Sync-AdDirectoryPartition")) {$SyncAdDir | Out-File $profile -Append }
+if(-not(Select-String -Path $profile -Pattern "Set-LegacyExchangeDN")) {$SetLegDN | Out-File $profile -Append }
+if(-not(Select-String -Path $profile -Pattern "New-LinkedMailbox")) {$NewLinkedMbx | Out-File $profile -Append }
 ## Get the server name from the registry
 Write-Host "Getting server name..." -ForegroundColor Green -NoNewline
 while($ServerName.Length -lt 1) {
@@ -447,7 +511,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                     }
                     2 { ## Standalone server install
                         ## Install critical March 2021 security update
-                        if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-KB5000871}
+                        if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-Exch2013SU}
                         Write-Host "Server installation complete"
                         Restart-Computer
                     }
@@ -456,7 +520,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             1 { ## This was a recover server and must determine whether a DAG member or standalone server
                 if($DagName -eq $null) {
                     ## Install critical March 2021 security update
-                    if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-KB5000871}
+                    if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-Exch2013SU}
                     Write-Host "Server installation complete"
                     Start-Sleep -Seconds 5
                     Restart-Computer
@@ -527,7 +591,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         }
         ## Exchange server setup is complete
         ## Install critical March 2021 security update
-        if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-KB5000871}
+        if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-Exch2013SU}
         Restart-Computer
     }
     1{ ## Finalize DC setup
@@ -555,3 +619,37 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         }
     }
 }
+
+# SIG # Begin signature block
+# MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
+# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDHJnxaqxeaS53b
+# KcBbZVWgyppV8m9Z6KD2Ndji1bA3Z6CCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
+# u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
+# cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
+# BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
+# ggEPADCCAQoCggEBAMSWhFMKzV8qMywbj1H6lg4h+cvR9CtxmQ1J3V9uf9+R2d9p
+# laoDqCNS+q8wz+t+QffvmN2YbcsHrXp6O7bF+xYjuPtIurv8wM69RB/Uy1xvsUKD
+# L/ZDQZ0zewMDLb5Nma7IYJCPYelHiSeO0jsyLXTnaOG0Rq633SUkuPv+C3N8GzVs
+# KDnxozmHGYq/fdQEv9Bpci2DkRTtnHvuIreeqsg4lICeTIny8jMY4yC6caQkamzp
+# GcJWWO0YZlTQOaTgHoVVnSZAvdJhzxIX2wqd0/VaVIbpN0HcPKtMrgXv0O2Bl4Lo
+# tmZR7za7H6hamxaPYQHHyReFs2xM7hlVVWhnfpECAwEAAaNoMGYwDgYDVR0PAQH/
+# BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMDMCAGA1UdEQQZMBeCFWptYXJ0aW5A
+# bWljcm9zb2Z0LmNvbTAdBgNVHQ4EFgQUCB04A8myETdoRJU9zsScvFiRGYkwDQYJ
+# KoZIhvcNAQELBQADggEBAEjsxpuXMBD72jWyft6pTxnOiTtzYykYjLTsh5cRQffc
+# z0sz2y+jL2WxUuiwyqvzIEUjTd/BnCicqFC5WGT3UabGbGBEU5l8vDuXiNrnDf8j
+# zZ3YXF0GLZkqYIZ7lUk7MulNbXFHxDwMFD0E7qNI+IfU4uaBllsQueUV2NPx4uHZ
+# cqtX4ljWuC2+BNh09F4RqtYnocDwJn3W2gdQEAv1OQ3L6cG6N1MWMyHGq0SHQCLq
+# QzAn5DpXfzCBAePRcquoAooSJBfZx1E6JeV26yw2sSnzGUz6UMRWERGPeECSTz3r
+# 8bn3HwYoYcuV+3I7LzEiXOdg3dvXaMf69d13UhMMV1sxggHdMIIB2QIBATA0MCAx
+# HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
+# NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
+# AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
+# CSqGSIb3DQEJBDEiBCBlGqtUdA5OWM+gWSSpdNddXM+RAvzZT6a8zWY8x4d4QDAN
+# BgkqhkiG9w0BAQEFAASCAQAwgRXTn6iAwcLSK9qYTK39H8mmvWzTDLxobIgU9uBk
+# fgkCnUo0qrDOF+MfxHMnXNz8hlQS3okvJZ87MRwctZIKumdCC5p9Mm9rVt/U9TId
+# n4GbscBOxbcb/rvac2D2IAY6wOJaXxJFvZomJUo4iM0T9WEKyxshvG1fdPKnlnkd
+# KNlOOhxo8hsuepn5Z/HC4CKgXMoyO4+8sdyUAMojeqz69gkcmkCfMI2YWCP61TNG
+# Oa4hOlaV3h+FS/OU5UyxAOYgXuK39xIB7YADmocBP0l2QB4vFmXP8VmtlR1Gim3p
+# 4Jr6JGNg4GCeF6hoLg8cpEQAZKoTS1ouVXAAHNnC6FMH
+# SIG # End signature block
