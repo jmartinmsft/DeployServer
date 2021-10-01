@@ -1,36 +1,45 @@
 ﻿<#
-# Deploy-Server.ps1
-# Modified 2020/10/31
-# Last Modifier:  Jim Martin
-# Project Owner:  Jim Martin
-# Version: v1.3
-
-# Syntax for running this script:
-#
-# .\Deploy-Server.ps1
-#
-#
-##############################################################################################
-#
-# This script is not officially supported by Microsoft, use it at your own risk.
-# Microsoft has no liability, obligations, warranty, or responsibility regarding
-# any result produced by use of this file.
-#
-##############################################################################################
-# The sample scripts are not supported under any Microsoft standard support
-# program or service. The sample scripts are provided AS IS without warranty
-# of any kind. Microsoft further disclaims all implied warranties including, without
-# limitation, any implied warranties of merchantability or of fitness for a particular
-# purpose. The entire risk arising out of the use or performance of the sample scripts
-# and documentation remains with you. In no event shall Microsoft, its authors, or
-# anyone else involved in the creation, production, or delivery of the scripts be liable
-# for any damages whatsoever (including, without limitation, damages for loss of business
-# profits, business interruption, loss of business information, or other pecuniary loss)
-# arising out of the use of or inability to use the sample scripts or documentation,
-# even if Microsoft has been advised of the possibility of such damages
-##############################################################################################
+//***********************************************************************
+//
+// Deploy-Server.ps1
+// Modified 2021/10/01
+// Last Modifier:  Jim Martin
+// Project Owner:  Jim Martin
+// Version: v1.5
+//Syntax for running this script:
+//
+// .\Deploy-Server.ps1
+//
+//**********************************************************************​
+//***********************************************************************
+//
+// Copyright (c) 2018 Microsoft Corporation. All rights reserved.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+//**********************************************************************​
 #>
 Clear-Host
+Write-Host -ForegroundColor Yellow '//***********************************************************************'
+Write-Host -ForegroundColor Yellow '//'
+Write-Host -ForegroundColor Yellow '// Copyright (c) 2018 Microsoft Corporation. All rights reserved.'
+Write-Host -ForegroundColor Yellow '//'
+Write-Host -ForegroundColor Yellow '// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR'
+Write-Host -ForegroundColor Yellow '// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,'
+Write-Host -ForegroundColor Yellow '// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE'
+Write-Host -ForegroundColor Yellow '// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER'
+Write-Host -ForegroundColor Yellow '// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,'
+Write-Host -ForegroundColor Yellow '// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN'
+Write-Host -ForegroundColor Yellow '// THE SOFTWARE.'
+Write-Host -ForegroundColor Yellow '//'
+Write-Host -ForegroundColor Yellow '//**********************************************************************​'
+Start-Sleep -Seconds 2
 function Check-ExchangeVersion {
     $latestVersion = 0
     Get-ExchangeServer | ForEach-Object {
@@ -304,15 +313,19 @@ function Prepare-ExchangeConnect {
         if($exchServer -notlike "*.*") {
             $dnsHost = "$exchServer.$domain"
             $hostIP = (Resolve-DnsName -Name $dnsHost -Server $tempDNS).IPAddress
-            Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"
-            Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $exchServer"
+            try { Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore }
+            catch {}
+            try { Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $exchServer" -ErrorAction Ignore }
+            catch { Write-Warning "Unable to update HOSTS file." }
         }
         else { 
             $dnsHost = $exchServer 
             $hostIP = (Resolve-DnsName -Name $dnsHost -Server $tempDNS).IPAddress
-            Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"
+            try { Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore  }
+            catch { Write-Warning "Unable to update HOSTS file." }
             $dnsHost = $dnsHost.Substring(0, $dnsHost.IndexOf("."))
-            Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"
+            try { Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore  }
+            catch { Write-Warning "Unable to update HOSTS file." }
         }
         $basicEnabled = Enable-BasicAuthentication
     }
@@ -733,12 +746,13 @@ if($forestInstallType -eq 1 -or $newInstallType -eq 0) {
     $Password = $credential.GetNetworkCredential().Password
 
     ## Adding hosts file entries to ensure proper name resolution
-    $hostsFile = Get-Content C:\Windows\System32\drivers\etc\hosts
+    #$hostsFile = Get-Content C:\Windows\System32\drivers\etc\hosts
     Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`r`n"
     $domainControllers = Resolve-DnsName -Name "_gc._tcp.$domain" -Type SRV -Server $tempDNS | where { $_.Name -notlike "_gc._tcp*" }
-    foreach($dc in $domainControllers) { 
+    foreach($dc in $domainControllers) {
         [string]$newLine = $dc.IPAddress + " " + $dc.Name; 
-        Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value $newLine
+        try { Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value $newline -ErrorAction Ignore }
+        catch { Write-Warning "Unable to update HOSTS file." }
     }
     ## Check if the account is a member of domain admins
     Write-Host "Checking account permissions..." -ForegroundColor Green
@@ -951,7 +965,7 @@ while($deployServer -eq $true) {
                         $p = @()
                         $output = "DiskNumber,PartitionNumber,AccessPaths"
                         $output | Out-File "C:\Temp\DiskInfo.csv" -Force
-                        Get-Disk | where {$_.Number -gt 0} | ForEach-Object { $p = Get-Partition -DiskNumber $_.Number | Where {$_.AccessPaths -ne $null -and $_.Type -eq "Basic"} | Select DiskNumber,PartitionNumber,AccessPaths}
+                        Get-Disk | where {$_.Number -gt 0} | ForEach-Object { $p = Get-Partition -DiskNumber $_.Number | Where {$_.AccessPaths -ne $null} | Select DiskNumber,PartitionNumber,AccessPaths}
                         $p | foreach-object { 
                             $diskNumber = $p.DiskNumber
                             $partitionNumber = $p.PartitionNumber
@@ -1047,10 +1061,12 @@ while($deployServer -eq $true) {
         else { 
             $exchServer = (Get-PSSession | Where { $_.ConfigurationName -eq "Microsoft.Exchange" } | Select -Last 1).ComputerName
             ## Add the Exchange server to the hosts file to ensure we don't have name resolution issues
-            $dnsHost = "$exchServer.$domain"
+            if($dnsHost -notlike "*$($domain)") { $dnsHost = "$exchServer.$domain" }
             $hostIP = (Resolve-DnsName -Name $dnsHost -Server $tempDNS).IPAddress
-            Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"
-            Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $exchServer"
+            try{ Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"  -ErrorAction Ignore }
+            catch { Write-Warning "Unable to update HOSTS file." }
+            try{ Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $exchServer" -ErrorAction Ignore  }
+            catch { Write-Warning "Unable to update HOSTS file." }
         }
 
     ## Get Exchange setup information
@@ -1272,7 +1288,7 @@ while($deployServer -eq $true) {
                         ## Remove existing database copies and then remove server from DAG
                         Write-Host "Removing database copy for $_ from the server..." -ForegroundColor Green -NoNewline
                         $dbCopy = $_.Name + "\$ServerName"
-                        Remove-MailboxDatabaseCopy $dbCopy -DomainController $domainController -Confirm:$False | Out-Null
+                        Remove-MailboxDatabaseCopy $dbCopy -DomainController $domainController -Confirm:$False -WarningAction Ignore | Out-Null
                         Write-Host "COMPLETE"
                     }
                 }
@@ -1349,6 +1365,7 @@ while($deployServer -eq $true) {
         Write-Host "Exporting current Exchange certificate with thumbprint $thumb from $certServer..." -ForegroundColor Green -NoNewline
         ## Need to check for c:\Temp
         New-Item -ItemType Directory -Path "\\$exchServer\c$\Temp" -ErrorAction Ignore | Out-Null
+        if(Get-Item "C:\Temp\$ServerName-Exchange.pfx" -ErrorAction Ignore) { Remove-Item "C:\Temp\$ServerName-Exchange.pfx" -Confirm:$False -Force}
         Export-ExchangeCertificate -Server $certServer -Thumbprint $thumb -FileName "C:\Temp\$ServerName-Exchange.pfx" -BinaryEncoded -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force) | Out-Null
         $certServerDrive = "\\$exchServer\c$\temp"
         New-PSDrive -Name "Script" -PSProvider FileSystem -Root $certServerDrive -Credential $credential
@@ -1479,7 +1496,8 @@ foreach($v in $vmServers) {
             Write-Host "Deleting the existing VHD file..." -ForegroundColor Green -NoNewline
             $vmHDD = (Get-VMHardDiskDrive -VMName $v)[0]
             [string]$vhdPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v)[0].Path).Path
-            [string]$vhdParentPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v)[0].Path).ParentPath
+            #[string]$vhdParentPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v)[0].Path).ParentPath
+            [string]$vhdParentPath = $VM_LocalizedStrings.res_0009
             $vmDiskCL = $vmHDD[0].ControllerLocation
             $vmDiskCN = $vmHDD[0].ControllerNumber
             Remove-Item -Path $vhdPath -Force
@@ -1524,3 +1542,37 @@ foreach($v in $vmServers) {
     Remove-Item -Path $v"-VM-strings.psd1" -Force
     #vmconnect.exe $env:COMPUTERNAME $v
 }
+
+# SIG # Begin signature block
+# MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
+# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB9RpDT3J7EWoSX
+# XO8AQBP8VetbgWbNA/ZL5qd6oIOxVKCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
+# u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
+# cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
+# BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
+# ggEPADCCAQoCggEBAMSWhFMKzV8qMywbj1H6lg4h+cvR9CtxmQ1J3V9uf9+R2d9p
+# laoDqCNS+q8wz+t+QffvmN2YbcsHrXp6O7bF+xYjuPtIurv8wM69RB/Uy1xvsUKD
+# L/ZDQZ0zewMDLb5Nma7IYJCPYelHiSeO0jsyLXTnaOG0Rq633SUkuPv+C3N8GzVs
+# KDnxozmHGYq/fdQEv9Bpci2DkRTtnHvuIreeqsg4lICeTIny8jMY4yC6caQkamzp
+# GcJWWO0YZlTQOaTgHoVVnSZAvdJhzxIX2wqd0/VaVIbpN0HcPKtMrgXv0O2Bl4Lo
+# tmZR7za7H6hamxaPYQHHyReFs2xM7hlVVWhnfpECAwEAAaNoMGYwDgYDVR0PAQH/
+# BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMDMCAGA1UdEQQZMBeCFWptYXJ0aW5A
+# bWljcm9zb2Z0LmNvbTAdBgNVHQ4EFgQUCB04A8myETdoRJU9zsScvFiRGYkwDQYJ
+# KoZIhvcNAQELBQADggEBAEjsxpuXMBD72jWyft6pTxnOiTtzYykYjLTsh5cRQffc
+# z0sz2y+jL2WxUuiwyqvzIEUjTd/BnCicqFC5WGT3UabGbGBEU5l8vDuXiNrnDf8j
+# zZ3YXF0GLZkqYIZ7lUk7MulNbXFHxDwMFD0E7qNI+IfU4uaBllsQueUV2NPx4uHZ
+# cqtX4ljWuC2+BNh09F4RqtYnocDwJn3W2gdQEAv1OQ3L6cG6N1MWMyHGq0SHQCLq
+# QzAn5DpXfzCBAePRcquoAooSJBfZx1E6JeV26yw2sSnzGUz6UMRWERGPeECSTz3r
+# 8bn3HwYoYcuV+3I7LzEiXOdg3dvXaMf69d13UhMMV1sxggHdMIIB2QIBATA0MCAx
+# HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
+# NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
+# AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
+# CSqGSIb3DQEJBDEiBCAyO0sFsgwOsOQVVuNrBclssT4ohB/4cTZk9bjFaJMh9TAN
+# BgkqhkiG9w0BAQEFAASCAQAdl35AGNQHRWNuu0I7QtNLZXOCUFsYbg4vjAQCqkzF
+# mE3OPL/AiRl1QICbKjmKDtXPrzVb5Y0//gu5IdgBjIicm9B47Encfw4dC9dHGFmM
+# Raa7zUWv6G5Pjd2DlnFsO4Cr4oMozfBH8b/KBChtl6jyxghp5Dpm2T2beUNIR1LQ
+# zub7N3DCFMyHpQ7fmkKtr8zv2CBr3gNvySsnp7GQVmna4wfLhynf5zcij/tVNUZI
+# jmi77IEU8ZL06UeHRpHBihLACW38VAwPTYS9tNHw+FMLg2+C5PlwX/vy2Xo24T/6
+# 9i4SZ4i/ppT7badobatPnm1CTwjd2buGR34YYUkUgWWy
+# SIG # End signature block
