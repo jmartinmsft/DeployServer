@@ -1,37 +1,44 @@
-﻿#
-# DeployServer-Step2.ps1
-# Modified 2020/10/30
-# Last Modifier:  Jim Martin
-# Project Owner:  Jim Martin
-# Version: v1.0
-
-# Script should automatically start when the virtual machine starts
-# Syntax for running this script:
-#
-# .\DeployServer-Step2.ps1
-#
-#
-##############################################################################################
-#
-# This script is not officially supported by Microsoft, use it at your own risk.
-# Microsoft has no liability, obligations, warranty, or responsibility regarding
-# any result produced by use of this file.
-#
-##############################################################################################
-# The sample scripts are not supported under any Microsoft standard support
-# program or service. The sample scripts are provided AS IS without warranty
-# of any kind. Microsoft further disclaims all implied warranties including, without
-# limitation, any implied warranties of merchantability or of fitness for a particular
-# purpose. The entire risk arising out of the use or performance of the sample scripts
-# and documentation remains with you. In no event shall Microsoft, its authors, or
-# anyone else involved in the creation, production, or delivery of the scripts be liable
-# for any damages whatsoever (including, without limitation, damages for loss of business
-# profits, business interruption, loss of business information, or other pecuniary loss)
-# arising out of the use of or inability to use the sample scripts or documentation,
-# even if Microsoft has been advised of the possibility of such damages
-##############################################################################################
-
-Clear-Host
+﻿<#
+// DeployServer-Step1.ps1
+// Modified 2021/10/01
+// Last Modifier:  Jim Martin
+// Project Owner:  Jim Martin
+// Version: v1.2
+//
+// Script should automatically start when the virtual machine starts.
+// Syntax for running this script:
+//
+// .\DeployServer-Step2.ps1
+//
+//**********************************************************************​
+//***********************************************************************
+//
+// Copyright (c) 2018 Microsoft Corporation. All rights reserved.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+// THE SOFTWARE.
+//
+//**********************************************************************​
+#>
+Write-Host -ForegroundColor Yellow '//***********************************************************************'
+Write-Host -ForegroundColor Yellow '//'
+Write-Host -ForegroundColor Yellow '// Copyright (c) 2018 Microsoft Corporation. All rights reserved.'
+Write-Host -ForegroundColor Yellow '//'
+Write-Host -ForegroundColor Yellow '// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR'
+Write-Host -ForegroundColor Yellow '// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,'
+Write-Host -ForegroundColor Yellow '// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE'
+Write-Host -ForegroundColor Yellow '// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER'
+Write-Host -ForegroundColor Yellow '// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,'
+Write-Host -ForegroundColor Yellow '// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN'
+Write-Host -ForegroundColor Yellow '// THE SOFTWARE.'
+Write-Host -ForegroundColor Yellow '//'
+Write-Host -ForegroundColor Yellow '//**********************************************************************​'
+Start-Sleep -Seconds 2
 function Install-Net4Dot7Two {
     ## Check if the currently installed version of Microsoft .NET Framework is below 4.7.2
     [int]$NetVersion = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\NET Framework Setup\NDP\v4\Full" -ErrorAction Ignore).Release
@@ -136,10 +143,12 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         ## Check if Exchange prerequisites are installed
         $vs2012Install = $true
         $vs2013Install = $true
-        $ucmaInstall =$true
+        $ucmaInstall = $true
+        $rewriteInstall = $true
         if((Get-Item "C:\Program Files\Microsoft UCMA 4.0\Runtime\MediaPerf.dll" -ErrorAction Ignore) -and (Get-Item "C:\Program Files\Microsoft UCMA 4.0\Runtime\MediaPerf.dll" -ErrorAction Ignore).VersionInfo.ProductVersion -ne 5.0.8308.0) {$ucmaInstall = $false}
         if((Get-Item $env:windir\system32\vccorlib120.dll -ErrorAction Ignore) -and (Get-Item $env:windir\system32\vccorlib120.dll -ErrorAction Ignore).VersionInfo.ProductVersion -ge 12.0.21005.1) {$vs2013Install = $false}
         if((Get-Item $env:windir\system32\vccorlib110.dll -ErrorAction Ignore) -and (Get-Item $env:windir\system32\vccorlib110.dll -ErrorAction Ignore).VersionInfo.ProductVersion -ge 11.0.51106.1) {$vs2012Install = $false}
+        if(Get-Item $env:windir\system32\inetsrv\rewrite.dll -ErrorAction Ignore) {$rewriteInstall = $false}
         ## Look to see if Visual C++ Redistributable Package for Visual Studio 2012 is installed
         Write-Host "Checking for Visual C++ Redistributable Package for Visual Studio 2012..." -ForegroundColor Green -NoNewline
         if($vs2012Install -eq $false) { 
@@ -181,6 +190,33 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             while(Get-Process vcredist_x64-2013 -ErrorAction SilentlyContinue) {
                 Write-Host "..." -ForegroundColor Green -NoNewline
                 Start-Sleep -Seconds 10
+            }
+            Write-Host "COMPLETE"
+        }
+        ## Look to see if URL Rewrite is installed
+        Write-Host "Checking for URL Rewrite..." -ForegroundColor Green -NoNewline
+        if($rewriteInstall -eq $false) {
+            Write-Host "FOUND"
+        }
+        else {
+            Write-Host "Downloading URL Rewrite..." -ForegroundColor Green -NoNewline
+            $Url = "https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi"
+            $Path = "C:\Temp\rewrite_amd64_en-US.msi"
+            $webClient = New-Object System.Net.WebClient
+            $webClient.DownloadFile($url, $path)
+            Write-Host "COMPLETE"
+            Write-Host "Installing URL Rewrite..." -ForegroundColor Green -NoNewline
+            C:\Temp\rewrite_amd64_en-US.msi /passive /norestart /log C:\Temp\rewrite.log
+            [boolean]$InstallComplete = $false
+            [int]$InstallCheck = 0
+            while($InstallComplete -eq $false) {
+                Start-Sleep -Seconds 30
+                if((Get-Content C:\Temp\rewrite.log) -contains "Installation completed successfully" -or $InstallCheck -eq 5) {
+                    $InstallComplete = $true
+                }
+                else {
+                    $InstallCheck++
+                }
             }
             Write-Host "COMPLETE"
         }
@@ -258,3 +294,37 @@ if($ExchangeInstall_LocalizedStrings.res_0100 -ne 0) {
         Start-Sleep -Seconds 5
     }
 }
+
+# SIG # Begin signature block
+# MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
+# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDQF9gSEFuVfwO7
+# TIT8W6F9uPhqktyqGaQp1drxp92PCKCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
+# u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
+# cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
+# BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
+# ggEPADCCAQoCggEBAMSWhFMKzV8qMywbj1H6lg4h+cvR9CtxmQ1J3V9uf9+R2d9p
+# laoDqCNS+q8wz+t+QffvmN2YbcsHrXp6O7bF+xYjuPtIurv8wM69RB/Uy1xvsUKD
+# L/ZDQZ0zewMDLb5Nma7IYJCPYelHiSeO0jsyLXTnaOG0Rq633SUkuPv+C3N8GzVs
+# KDnxozmHGYq/fdQEv9Bpci2DkRTtnHvuIreeqsg4lICeTIny8jMY4yC6caQkamzp
+# GcJWWO0YZlTQOaTgHoVVnSZAvdJhzxIX2wqd0/VaVIbpN0HcPKtMrgXv0O2Bl4Lo
+# tmZR7za7H6hamxaPYQHHyReFs2xM7hlVVWhnfpECAwEAAaNoMGYwDgYDVR0PAQH/
+# BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMDMCAGA1UdEQQZMBeCFWptYXJ0aW5A
+# bWljcm9zb2Z0LmNvbTAdBgNVHQ4EFgQUCB04A8myETdoRJU9zsScvFiRGYkwDQYJ
+# KoZIhvcNAQELBQADggEBAEjsxpuXMBD72jWyft6pTxnOiTtzYykYjLTsh5cRQffc
+# z0sz2y+jL2WxUuiwyqvzIEUjTd/BnCicqFC5WGT3UabGbGBEU5l8vDuXiNrnDf8j
+# zZ3YXF0GLZkqYIZ7lUk7MulNbXFHxDwMFD0E7qNI+IfU4uaBllsQueUV2NPx4uHZ
+# cqtX4ljWuC2+BNh09F4RqtYnocDwJn3W2gdQEAv1OQ3L6cG6N1MWMyHGq0SHQCLq
+# QzAn5DpXfzCBAePRcquoAooSJBfZx1E6JeV26yw2sSnzGUz6UMRWERGPeECSTz3r
+# 8bn3HwYoYcuV+3I7LzEiXOdg3dvXaMf69d13UhMMV1sxggHdMIIB2QIBATA0MCAx
+# HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
+# NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
+# AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
+# CSqGSIb3DQEJBDEiBCCryHIHsABLejgJSb8xP1uqJOuN+x5B84r8TgyRGBiEKTAN
+# BgkqhkiG9w0BAQEFAASCAQBF6ueFknvIR4pWHpFiJJI59SarKVT4sg01d7WxF7Df
+# 07IX8/diQ8u2uwaKqBOXKV83Six9m8rxMBVZ9e4J1/XtKqWs+hrTRhFYEH/6Mo1T
+# PnC64va3bVUQ0JoRe8oMKlLtAM7K2BB6vlcme3v3rXTU+1Ij2SRg9KZXE/rWsVhS
+# Ek7EVY5GwRYpOAB8OaF3f7sfGWPKgvUQ+kGSpgILtcoDsYB+TQJp9lamN46wIREj
+# ZBZOhJhUbbrRkwdnky71cj4WWE+trwUhbsEYTB95IISJ/QDFUBTJddRcrfAasioo
+# X31xyWpI/mAO/Nb+Jz+ynw03dW74Vkkw/bYRbA2zpUO4
+# SIG # End signature block
