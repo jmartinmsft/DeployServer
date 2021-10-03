@@ -211,7 +211,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             [int]$InstallCheck = 0
             while($InstallComplete -eq $false) {
                 Start-Sleep -Seconds 30
-                if((Get-Content C:\Temp\rewrite.log) -contains "Installation completed successfully" -or $InstallCheck -eq 5) {
+                if((Get-Content C:\Temp\rewrite.log) -match " completed successfully" -or $InstallCheck -eq 5) {
                     $InstallComplete = $true
                 }
                 else {
