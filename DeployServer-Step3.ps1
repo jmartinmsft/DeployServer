@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step1.ps1
-// Modified 2021/10/01
+// Modified 2021/10/03
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.2
+// Version: v1.3
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -357,9 +357,11 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         $setupSuccess = $false
         while($setupSuccess -eq $false) {
             ## Clearing any previous setup log
-            Remove-Item -Path c:\ExchangeSetupLogs\ExchangeSetup.log -Force -ErrorAction Ignore | Out-Null
-            ## Update the setup command for September 2021 CU releases
             $file = "C:\Temp\exSetup.bat"
+            Remove-Item -Path c:\ExchangeSetupLogs\ExchangeSetup.log -Force -ErrorAction Ignore | Out-Null
+            ## Reset setup command if failed
+            (Get-Content $file) -replace "/IAcceptExchangeServerLicenseTerms_DiagnosticDataOFF", "/IAcceptExchangeServerLicenseTerms" | Set-Content $file
+            ## Update the setup command for September 2021 CU releases
             $setupCommand = (Select-String -Path $file -Pattern setup).Line
             $setupFile = $setupCommand.Substring(0, $setupCommand.IndexOf(" "))
             switch ($ExchangeInstall_LocalizedStrings.res_0003) { ## Checking the version of Exchange being installed
@@ -466,8 +468,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
 # SIG # Begin signature block
 # MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBAXvSjXHlAUHTh
-# cW47yYFq78rq09rOgoUgjRIRExKsEqCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDs5kJGs2foQTlh
+# /Z6F80Va/tsorCRBXDML3sH95s59P6CCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
 # u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
 # cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
 # BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
@@ -488,11 +490,11 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
 # HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
 # NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
 # AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
-# CSqGSIb3DQEJBDEiBCD6DX4PRQtc+9NA2tLCh62TZ2vrW8zpTz09DNv8rgIrcTAN
-# BgkqhkiG9w0BAQEFAASCAQAxfUBSxjsSG74/PJkCLw+4u/njGuddo4kNjpc+cs2P
-# mPCJpaVfGyXAsJN6IKkmMchDmB8e34TRwoTJJDkfpuuITP3SLuckDnbI1izEICrb
-# l5K+p7m7BXZm1c2I+Ecvse6EWOzPITVlVe01vVLVO60qdSjaf8x5K+R8Uu9oLZcB
-# tHWoYxaOolkQ0DqfwpcFNLEXeNTOuaXM+Mcxol/EgPZKxafipN9IdCNIwXidz3Q5
-# nkAhKzr5L96XJZgtKau09lI/Nyk3G6wke5dzMrUfusnwIuQPfanEyK7cwy+Eymsd
-# AiJOpaAwJxqSjZoGYCi3Hqe2Q08R9LxkO9EW/pqzq0V0
+# CSqGSIb3DQEJBDEiBCAOStyu+qi2foybyNnwmfUK2449uim5EPz82sbQKJIJ9jAN
+# BgkqhkiG9w0BAQEFAASCAQBiP1lWfrPfNLgFWdgOIVMm62yP5Q71kNZngaeTn+7w
+# G0jdiXNW5eGgow5VyBskOqvmgytqesI6XTAb45bASFaSk+n7oaRB4bf0J43e9ovg
+# t1orbrIg8j0i7GbabJaiO1etqT4usS9UknOz7DRmRMdR6PfKU/WAkeuNv7XasurB
+# ngBZP24Wrt7dwZK/CT3DGCdkREmUoGMAvlh1AqYIJto7HGrFN+jiZAiF2Xm7b8MT
+# 1aoMWM2p5UsT3MsfMNRJPr7CRDkMyQQxzOEQEcPIr+y7uGosXuAkepm9N0kInMZb
+# JGpyIDez5VW5GFpJy2IZ16qc6WkewkLjXQdtOIAb7xqx
 # SIG # End signature block
