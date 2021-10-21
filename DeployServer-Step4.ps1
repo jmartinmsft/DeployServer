@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step1.ps1
-// Modified 2021/10/01
+// Modified 2021/10/21
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.2
+// Version: v1.2.1
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -41,13 +41,13 @@ Write-Host -ForegroundColor Yellow '//******************************************
 Start-Sleep -Seconds 2
 ## Functions for Exchange configuration
 function Install-Exch2013SU {
-    ## Download and install July 2021 Security Update for Exchange 2013 CU23
+    ## Download and install October 2021 Security Update for Exchange 2013 CU23
     Write-Host "Downloading Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Invoke-WebRequest -Uri "https://download.microsoft.com/download/2/e/0/2e0bcd42-e604-4bc0-afce-460e05189a2e/Exchange2013-KB5004778-x64-en.msp" -OutFile "C:\Temp\Exchange2013-KB5004778-x64-en.msp" 
-    Write-Host "Installing Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5004778-x64-en.msp /passive /norestart"
+    Invoke-WebRequest -Uri "https://download.microsoft.com/download/3/c/5/3c58339e-0cd2-4f6d-a7e7-0bd6793c145c/Exchange2013-KB5007011-x64-en.msp" -OutFile "C:\Temp\Exchange2013-KB5007011-x64-en.msp" 
+    Write-Host "Installing October 2021 Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
+    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5007011-x64-en.msp /passive /norestart"
     Start-Sleep -Seconds 10
-    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5004778)"} -ErrorAction SilentlyContinue) {
+    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5007011)"} -ErrorAction SilentlyContinue) {
         Write-Host "..." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 10
     }
@@ -623,8 +623,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
 # SIG # Begin signature block
 # MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDHJnxaqxeaS53b
-# KcBbZVWgyppV8m9Z6KD2Ndji1bA3Z6CCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDrj9nnTOCf1O7b
+# j60Uq1miEaMH4HSnKgzYMO0KAKIV3aCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
 # u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
 # cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
 # BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
@@ -645,11 +645,11 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
 # HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
 # NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
 # AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
-# CSqGSIb3DQEJBDEiBCBlGqtUdA5OWM+gWSSpdNddXM+RAvzZT6a8zWY8x4d4QDAN
-# BgkqhkiG9w0BAQEFAASCAQAwgRXTn6iAwcLSK9qYTK39H8mmvWzTDLxobIgU9uBk
-# fgkCnUo0qrDOF+MfxHMnXNz8hlQS3okvJZ87MRwctZIKumdCC5p9Mm9rVt/U9TId
-# n4GbscBOxbcb/rvac2D2IAY6wOJaXxJFvZomJUo4iM0T9WEKyxshvG1fdPKnlnkd
-# KNlOOhxo8hsuepn5Z/HC4CKgXMoyO4+8sdyUAMojeqz69gkcmkCfMI2YWCP61TNG
-# Oa4hOlaV3h+FS/OU5UyxAOYgXuK39xIB7YADmocBP0l2QB4vFmXP8VmtlR1Gim3p
-# 4Jr6JGNg4GCeF6hoLg8cpEQAZKoTS1ouVXAAHNnC6FMH
+# CSqGSIb3DQEJBDEiBCAwzegKbM/D3/F1TanGoDFhPT+9v2Ova5BJ0kAVAQdkLzAN
+# BgkqhkiG9w0BAQEFAASCAQCW5WEoM8kikdMa57tJ0AosywLw9ATXnVhHGGJ3lfSY
+# wfCoKcBNIPBbpztqbilha42nynRaWTFQoBst8uFvfsBPipFbMNqg9/rFyplacMu/
+# D2RvJGAoAIsxm7trZFfijEAptg9eQgDLF+/W6PpQA36wRD4GSaDpER4io6BsGH60
+# N5HHVGbqUrd6MpV2F69gwf3ZBr14xrarO77w/wU7tINR0QaNZABKrnbQoq0uerD4
+# Luq3A3wrSWCdONu88dv3IZiqlogh1C8+tfcEcdEZX7lz73b+4ZHdkjJxhuayiV35
+# cdoeorEkCnVm10j3EhW5v3WZjPnz6wB7osZqWcVsDWgR
 # SIG # End signature block
