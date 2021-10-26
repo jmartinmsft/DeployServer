@@ -2,10 +2,10 @@
 //***********************************************************************
 //
 // Deploy-Server.ps1
-// Modified 2021/10/01
+// Modified 2021/10/26
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.5
+// Version: v1.6
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -58,11 +58,13 @@ function Move-MailboxDatabase {
         $copyStatus = Get-MailboxDatabaseCopyStatus $database | Where {$_.Status -ne "Mounted"}
         [string]$healthyCopy = $null
         foreach($c in $copyStatus) {
-            if($c.ContentIndexState -eq "Healthy" -and $c.CopyQueueLength -eq 0 -and $c.Status -eq "Healthy") {
-                $healthyCopy = $c.Name
-                $healthyCopy = $healthyCopy.Substring($healthyCopy.IndexOf("\")+1)
-                $stopDbCheck = $true
-                break
+            if($c.CopyQueueLength -eq 0 -and $c.Status -eq "Healthy") {
+                if($c.ContentIndexState -eq "Healthy" -or $exchVersion -gt 1 ) {
+                    $healthyCopy = $c.Name
+                    $healthyCopy = $healthyCopy.Substring($healthyCopy.IndexOf("\")+1)
+                    $stopDbCheck = $true
+                    break
+                }
             }
         }
         if($healthyCopy.Length -eq 0) {
@@ -126,7 +128,7 @@ function Move-MailboxDatabaseBestEffort {
 function Get-ExchangeISO {
         Write-Host "Please select the Exchange ISO" -ForegroundColor Yellow
         Start-Sleep -Seconds 2
-        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\ISO"; Title="Select the Exchange ISO"}
+        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="C:\ISO"; Title="Select the Exchange ISO"}
         $fileBrowser.Filter = "ISO (*.iso)| *.iso"
         $fileBrowser.ShowDialog()
         [string]$exoISO = $fileBrowser.FileName
@@ -205,7 +207,7 @@ function Get-VMParentDisk {
         Write-Host "Please select the parent VHD disk" -ForegroundColor Yellow
         Start-Sleep -Seconds 2
         while($parentVHD.Length -eq 0) {
-            $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the parent VHD"}
+            $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="C:\VHDs"; Title="Select the parent VHD"}
             $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
             $fileBrowser.ShowDialog()
             [string]$parentVHD = $fileBrowser.FileName
@@ -222,7 +224,7 @@ function Get-VMBaseDisk {
     Write-Host "Please select the base VHD image" -ForegroundColor Yellow
     Start-Sleep -Seconds 2
     while($serverVHD.Length -eq 0) {
-        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the Exchange VHD"}
+        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="C:\VHDs"; Title="Select the Exchange VHD"}
         $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
         $fileBrowser.ShowDialog()
         [string]$serverVHD = $fileBrowser.FileName
@@ -1229,7 +1231,44 @@ while($deployServer -eq $true) {
                     [string]$thumb = Get-ServerCertificate
                 }
             }
-            
+            #Get Client Access settings
+            $AutoD = Get-ClientAccessServer $ServerName
+            Add-Content -Path $serverVarFile -Value ('res_0038 = ' + $AutoD.AutoDiscoverServiceInternalUri.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('res_0058 = ' + $AutoD.AutoDiscoverSiteScope)
+            $AutoD = $null
+            $Ecp = Get-EcpVirtualDirectory -Server $ServerName -ADPropertiesOnly
+            Add-Content -Path $serverVarFile -Value ('res_0039 = ' + $Ecp.InternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('res_0040 = ' + $Ecp.ExternalUrl.AbsoluteUri)
+            $Ecp = $null
+            $Ews = Get-WebServicesVirtualDirectory -Server $ServerName -ADPropertiesOnly
+            Add-Content -Path $serverVarFile -Value ('res_0041 = ' + $Ews.InternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('res_0042 = ' + $Ews.ExternalUrl.AbsoluteUri)
+            $Ews = $null
+            $Mapi = Get-MapiVirtualDirectory -Server $ServerName -ADPropertiesOnly
+            Add-Content -Path $serverVarFile -Value ('res_0043 = ' + $Mapi.InternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('res_0044 = ' + $Mapi.ExternalUrl.AbsoluteUri)
+            $Mapi = $null
+            $Eas = Get-ActiveSyncVirtualDirectory -Server $ServerName -ADPropertiesOnly
+            Add-Content -Path $serverVarFile -Value ('res_0045 = ' + $Eas.ExternalUrl.AbsoluteUri)
+            $Eas = $null
+            $Oab = Get-OabVirtualDirectory -Server $ServerName -ADPropertiesOnly
+            Add-Content -Path $serverVarFile -Value ('res_0046 = ' + $Oab.InternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('res_0047 = ' + $Oab.ExternalUrl.AbsoluteUri)
+            $Oab = $null
+            $Owa = Get-OwaVirtualDirectory -Server $ServerName
+            Add-Content -Path $serverVarFile -Value ('res_0054 = ' + $Owa.InternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('res_0055 = ' + $Owa.ExternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('res_0056 = ' + $Owa.LogonFormat)
+            Add-Content -Path $serverVarFile -Value ('res_0057 = ' + $Owa.DefaultDomain)
+            $Owa = $null
+            $RpcHttp = Get-OutlookAnywhere -Server $ServerName
+            Add-Content -Path $serverVarFile -Value ('res_0048 = ' + $RpcHttp.InternalHostname)
+            Add-Content -Path $serverVarFile -Value ('res_0049 = ' + $RpcHttp.InternalClientsRequireSsl)
+            Add-Content -Path $serverVarFile -Value ('res_0050 = ' + $RpcHttp.InternalClientAuthenticationMethod)
+            Add-Content -Path $serverVarFile -Value ('res_0051 = ' + $RpcHttp.ExternalHostname)
+            Add-Content -Path $serverVarFile -Value ('res_0052 = ' + $RpcHttp.ExternalClientsRequireSsl)
+            Add-Content -Path $serverVarFile -Value ('res_0053 = ' + $RpcHttp.ExternalClientAuthenticationMethod)
+            $RpcHttp = $null
             ##Check if the Exchange server is a member of a DAG
             Write-Host "Checking if the Exchange server is a member of a DAG..." -ForegroundColor Green -NoNewline
             if(Get-DatabaseAvailabilityGroup -DomainController $domainController | Where { $_.Servers -match $ServerName }) {
@@ -1546,8 +1585,8 @@ foreach($v in $vmServers) {
 # SIG # Begin signature block
 # MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB9RpDT3J7EWoSX
-# XO8AQBP8VetbgWbNA/ZL5qd6oIOxVKCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB5lPRSzsbVGYP1
+# mEBbZTyYLZmevGWQIZ+EbsUjfFfZlKCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
 # u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
 # cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
 # BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
@@ -1568,11 +1607,11 @@ foreach($v in $vmServers) {
 # HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
 # NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
 # AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
-# CSqGSIb3DQEJBDEiBCAyO0sFsgwOsOQVVuNrBclssT4ohB/4cTZk9bjFaJMh9TAN
-# BgkqhkiG9w0BAQEFAASCAQAdl35AGNQHRWNuu0I7QtNLZXOCUFsYbg4vjAQCqkzF
-# mE3OPL/AiRl1QICbKjmKDtXPrzVb5Y0//gu5IdgBjIicm9B47Encfw4dC9dHGFmM
-# Raa7zUWv6G5Pjd2DlnFsO4Cr4oMozfBH8b/KBChtl6jyxghp5Dpm2T2beUNIR1LQ
-# zub7N3DCFMyHpQ7fmkKtr8zv2CBr3gNvySsnp7GQVmna4wfLhynf5zcij/tVNUZI
-# jmi77IEU8ZL06UeHRpHBihLACW38VAwPTYS9tNHw+FMLg2+C5PlwX/vy2Xo24T/6
-# 9i4SZ4i/ppT7badobatPnm1CTwjd2buGR34YYUkUgWWy
+# CSqGSIb3DQEJBDEiBCAylp2wgEbC88e8a1NgsdkLLvoSXNM0OSlurm9EO/yJEDAN
+# BgkqhkiG9w0BAQEFAASCAQBedYLPKa/SaucD6CZmG4aE+CrUsdJzkscj3YqCcklg
+# SHNoplRhwwfRO+5wgaSxY2SdK42ywQVlblCE5brmHcl/KBIP3Y+IeQSMjSlR8Iux
+# LG9BBjXOddTz8omEoNWNSeVLAKYpZClrg4IHSGPWHprmuxtWzYTjw1+b9+kl4T79
+# H843768bzwV3gf6iYW9LqPnSAen3LiuTvca1Y0zJmL+pRS3l0yAnqasjZdyFQ4uJ
+# dR9+MkgLAW9evSP3D4cqzSzgrK3TR6et1OzEqz+sdc+fs+de98YXom3K6dXL/RbZ
+# 9jiAltHepbiMgFJALTItXgyX6p1eGSgASfoTHLYtPWFs
 # SIG # End signature block
