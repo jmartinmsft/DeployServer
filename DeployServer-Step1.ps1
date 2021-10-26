@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step1.ps1
-// Modified 2021/07/21
+// Modified 2021/10/26
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.1
+// Version: v1.2
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -129,9 +129,11 @@ Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server' 
 Enable-NetFirewallRule -DisplayGroup "Remote Desktop"
 Write-Host "COMPLETE"
 ## Disable IE Enhance Security Configuration
-Write-Host "Disabling IE Enhanced security configuration..." -ForegroundColor Green -NoNewline
-Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -Name "IsInstalled" -Value 0
-Write-Host "COMPLETE"
+if((Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\').InstallationType -ne "Server Core") {
+    Write-Host "Disabling IE Enhanced security configuration..." -ForegroundColor Green -NoNewline
+    Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -Name "IsInstalled" -Value 0
+    Write-Host "COMPLETE"
+}
 $domainController = $ExchangeInstall_LocalizedStrings.res_0031
 ## Install ADDS if the server is a domain controller
 if($ExchangeInstall_LocalizedStrings.res_0099 -eq 1) {
@@ -221,8 +223,8 @@ Rename-Computer -NewName $ServerName -Restart
 # SIG # Begin signature block
 # MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCc2qlbsIJZ2+5t
-# gpr5wbdrACAL3pgJ90SydRXl/LzANqCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAnOunL2zSIblTW
+# 4xvhTWvhnKWIMHOo8LEYAHUOEIA/faCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
 # u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
 # cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
 # BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
@@ -243,11 +245,11 @@ Rename-Computer -NewName $ServerName -Restart
 # HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
 # NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
 # AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
-# CSqGSIb3DQEJBDEiBCAw9iRWJ4NSBQmhq4CIewCjh4BKlMJ1MqWfTFro+FmeMTAN
-# BgkqhkiG9w0BAQEFAASCAQAZKZo9fWbegu1Ae2CUPnXriA/mfoLUHoVIRtTfSPrM
-# 5u8+VHjbcmuFwQZRybAEh5uo353miBUJWeV4pUFF16tDGKVi0Rf34lRAhdTyUTpt
-# RJXYf6YsB0Z4OsLd9Ut/cfO+KexFg7XP48y0Ljtln1UA7P3akPu1tPPAbgsIdCS3
-# ZnU4aCLON3ncF5t5hUIh1QU4pLHtzAmeliEOjtfER0CZhiOOjK6Hjbq49vTf/CSB
-# 6vMOFqluvFnoRVCWvz0drzeQSvd7i99IFhJXXGxzgqX8Gxj6NXCNlmHeG4oda6PM
-# 5GDOLINH7a/qW6snyrFEs8vDoYcuhuafb8xzBrtD9n05
+# CSqGSIb3DQEJBDEiBCAg04zKkSDOqUkUnZ/HumTuJM8CisMGO5T0i54we2sZ6zAN
+# BgkqhkiG9w0BAQEFAASCAQBVUDLycZDlOFM2iswdJh0aHJquFCQxA23cOYt118vO
+# F/Ts6jcF31JGknfxougG5v+RTmg1dDHJq1df9L91ek7taSFnHUC3S896JhgwzPnF
+# 32lmt+79USFzNnRU+nbZYsld3bUNRsr8A5WZCGynrjfAwVreAKEafwQWt3TqEcqe
+# 66T5ftbqGOJ8dqFag6NuK4vpBADikLJ7ewlVUzMD9+6RSYjOtngBUFuQpj1YkETB
+# 26ZMOHN9RLEdckDEMImPVAd2Waggeh82WhW0nu9gXyk5IBAj+q4bf4LcR6FfgZoQ
+# pal9NyYi8aCa5oMlZZMfgq2iBjhbabaYYw9jm09h5wR9
 # SIG # End signature block
