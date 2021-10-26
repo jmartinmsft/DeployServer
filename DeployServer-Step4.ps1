@@ -1,9 +1,9 @@
 ﻿<#
-// DeployServer-Step1.ps1
-// Modified 2021/10/21
+// DeployServer-Step4.ps1
+// Modified 2021/10/26
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.2.1
+// Version: v1.3
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -40,11 +40,18 @@ Write-Host -ForegroundColor Yellow '//'
 Write-Host -ForegroundColor Yellow '//**********************************************************************​'
 Start-Sleep -Seconds 2
 ## Functions for Exchange configuration
+function Install-ExchSU {
+    switch($ExchangeInstall_LocalizedStrings.res_0003){
+        0 {Install-Exch2013SU}
+        1 {Install-Exch2016SU}
+        2 {Install-Exch2019SU}
+    }
+}
 function Install-Exch2013SU {
     ## Download and install October 2021 Security Update for Exchange 2013 CU23
     Write-Host "Downloading Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
     Invoke-WebRequest -Uri "https://download.microsoft.com/download/3/c/5/3c58339e-0cd2-4f6d-a7e7-0bd6793c145c/Exchange2013-KB5007011-x64-en.msp" -OutFile "C:\Temp\Exchange2013-KB5007011-x64-en.msp" 
-    Write-Host "Installing October 2021 Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
+    Write-Host "Installing October 2021 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
     Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5007011-x64-en.msp /passive /norestart"
     Start-Sleep -Seconds 10
     while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5007011)"} -ErrorAction SilentlyContinue) {
@@ -52,6 +59,48 @@ function Install-Exch2013SU {
         Start-Sleep -Seconds 10
     }
     Write-Host "COMPLETE"
+}
+function Install-Exch2016SU{
+## Download and install October 2021 Security Update for Exchange 2013 CU23
+    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -eq "15.01.2308.008") {
+        Write-Host "Downloading Security Update for Exchange 2016 CU21..." -ForegroundColor Green 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/3/6/c/36c6e86d-6921-4004-b5a3-b684a77336a0/Exchange2016-KB5007012-x64-en.msp" -OutFile "C:\Temp\Exchange2016-KB5007012-x64-en.msp" 
+    }
+    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -eq "15.01.2375.007") {
+        Write-Host "Downloading Security Update for Exchange 2016 CU22..." -ForegroundColor Green
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/2/c/f/2cfef077-d7f5-4595-ba47-a090c3d82737/Exchange2016-KB5007012-x64-en.msp" -OutFile "C:\Temp\Exchange2016-KB5007012-x64-en.msp" 
+    }
+    if(Get-Item C:\Temp\Exchange2016-KB5007012-x64-en.msp -ErrorAction Ignore) {
+        Write-Host "Installing October 2021 Security Update for Exchange 2016 CU21..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5007012-x64-en.msp /passive /norestart"
+        Start-Sleep -Seconds 10
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5007012*"} -ErrorAction SilentlyContinue) {
+            Write-Host "..." -ForegroundColor Green -NoNewline
+            Start-Sleep -Seconds 10
+        }
+        Write-Host "COMPLETE"
+    }
+}
+function Install-Exch2019SU{
+    ## Download and install October 2021 Security Update for Exchange 2013 CU23
+    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -eq "15.02.0922.007") {
+        Write-Host "Downloading Security Update for Exchange 2019 CU10..." -ForegroundColor Green 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/9/e/5/9e57bb88-97b4-4311-af6e-4735ef103c49/Exchange2019-KB5007012-x64-en.msp" -OutFile "C:\Temp\Exchange2019-KB5007012-x64-en.msp" 
+    }
+    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -eq "15.02.0986.005") {
+        Write-Host "Downloading Security Update for Exchange 2019 CU11..." -ForegroundColor Green 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/e/3/0/e30fdebd-f454-4ef7-8c84-123a19b22ad7/Exchange2019-KB5007012-x64-en.msp" -OutFile "C:\Temp\Exchange2019-KB5007012-x64-en.msp" 
+    }
+    if(Get-Item C:\Temp\Exchange2019-KB5007012-x64-en.msp -ErrorAction Ignore) {
+        Write-Host "Installing October 2021 Security Update for Exchange 2019 CU10..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5007012-x64-en.msp /passive /norestart"
+        Start-Sleep -Seconds 10
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5007012*"} -ErrorAction SilentlyContinue) {
+            Write-Host "..." -ForegroundColor Green -NoNewline
+            Start-Sleep -Seconds 10
+        }
+        Write-Host "COMPLETE"
+    }
 }
 function Sync-AD {
     Get-ADReplicationConnection -Filter * -ErrorAction Ignore | ForEach-Object {
@@ -331,61 +380,6 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Wi
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "DefaultUserName" -Force | Out-Null
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "DefaultDomainName" -Force | Out-Null
 Write-Host "COMPLETE"
-## Add PowerShell functions to profile
-$SyncAdConfig = @'
-function Sync-AdConfigPartition {
-	Get-ADReplicationConnection -Filter * | ForEach-Object {
-	        [string]$fromServer = ($_.ReplicateFromDirectoryServer).Substring(20)
-        	$fromServer = $fromServer.Substring(0, $fromServer.IndexOf(","))
-        	[string]$toServer = ($_.ReplicateToDirectoryServer).Substring(3)
-	        $toServer = $toServer.Substring(0, $toServer.IndexOf(","))
-        	[string]$configPartition = ($_.ReplicateToDirectoryServer).Substring($_.ReplicateToDirectoryServer.IndexOf("CN=Configuration"))
-		repadmin /replicate $toServer $fromServer $configPartition
-	}
-}
-'@
-$SyncAdDir = @'
-function Sync-AdDirectoryPartition {
-    Get-ADReplicationConnection -Filter * | ForEach-Object {
-        [string]$fromServer = ($_.ReplicateFromDirectoryServer).Substring(20)
-        $fromServer = $fromServer.Substring(0, $fromServer.IndexOf(","))
-        [string]$toServer = ($_.ReplicateToDirectoryServer).Substring(3)
-        $toServer = $toServer.Substring(0, $toServer.IndexOf(","))
-	$partition = (Get-ADDomain).DistinguishedName
-	repadmin /replicate $toServer $fromServer $partition /force 
-   }
-}
-'@
-$SetLegDN = @'
-function Set-LegacyExchangeDN { 
-	Param(
-        [Parameter(Mandatory=$true)] [string]$Alias,
-        [Parameter(Mandatory=$true)] [string]$legacyExchDN
-    )
-	Get-AdObject -Filter "mailNickname -eq '$Alias'" | Set-ADObject -Replace @{legacyExchangeDN = $legacyExchDN }
-}
-'@
-$NewLinkedMbx = @'
-function New-LinkedMailbox {
-    Param(
-        [Parameter(Mandatory=$true)] [string]$FirstName,
-        [Parameter(Mandatory=$true)] [string]$LastName,
-        [Parameter(Mandatory=$true)] [string]$Alias
-    )
-    $p = Read-Host "Enter the password for the user: " -AsSecureString
-    $cred = Get-Credential -UserName administrator@user.local -Message "New user account"
-    $name = "$FirstName $LastName"
-    $upn = "$Alias@thejimmartin.com"
-    New-ADUser -Name $name -DisplayName $name -GivenName $FirstName -Surname $LastName -SamAccountName $Alias -UserPrincipalName $upn -Path "OU=LabUsers,DC=user,DC=local" -AccountPassword $p -Enabled:$True -Server user-dc1.user.local -Credential $cred
-    $upn = "$alias@resource.local"
-    New-Mailbox -Name $name -DisplayName $name -FirstName $FirstName -LastName $LastName -Alias $Alias -SamAccountName $Alias -OrganizationalUnit "OU=LabUsers,DC=resource,DC=local" -LinkedCredential $cred -LinkedDomainController user-dc1.user.local -UserPrincipalName $upn -LinkedMasterAccount $Alias
-}
-'@
-if(-not(Get-Item $profile -ErrorAction Ignore)){ New-Item $profile -ItemType File -Force }
-if(-not(Select-String -Path $profile -Pattern "Sync-AdConfigPartition")) {$SyncAdConfig | Out-File $profile -Append }
-if(-not(Select-String -Path $profile -Pattern "Sync-AdDirectoryPartition")) {$SyncAdDir | Out-File $profile -Append }
-if(-not(Select-String -Path $profile -Pattern "Set-LegacyExchangeDN")) {$SetLegDN | Out-File $profile -Append }
-if(-not(Select-String -Path $profile -Pattern "New-LinkedMailbox")) {$NewLinkedMbx | Out-File $profile -Append }
 ## Get the server name from the registry
 Write-Host "Getting server name..." -ForegroundColor Green -NoNewline
 while($ServerName.Length -lt 1) {
@@ -459,34 +453,68 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             Enable-ExchangeCertificate -Thumbprint $transportCert -Services SMTP -Server $ServerName -Force
         }
         ## Configure the Exchange virtual directories
-        $intHostname = $ExchangeInstall_LocalizedStrings.res_0020
-        $extHostname = $ExchangeInstall_LocalizedStrings.res_0021
-        if($intHostname -ne $null -and $extHostname -ne $null) {
-            Write-Host "Configuring virtual directories..." -ForegroundColor Green
-            Write-Host "Updating Autodiscover URL..." -ForegroundColor Green -NoNewline
-            Get-ClientAccessServer $ServerName | Set-ClientAccessServer -AutoDiscoverServiceInternalUri https://$intHostname/Autodiscover/Autodiscover.xml
-            Write-Host "COMPLETE"
-            Write-Host "Updating Exchange Control Panel virtual directory..." -ForegroundColor Green -NoNewline
-            Get-EcpVirtualDirectory -Server $ServerName |Set-EcpVirtualDirectory -InternalUrl https://$intHostname/ecp -ExternalUrl https://$extHostname/ecp
-            Write-Host "COMPLETE"
-            Write-Host "Updating Exchange Web Services virtual directory..." -ForegroundColor Green -NoNewline
-            Get-WebServicesVirtualDirectory -Server $ServerName | Set-WebServicesVirtualDirectory -InternalUrl https://$intHostname/ews/exchange.asmx -ExternalUrl https://$extHostname/ews/exchange.asmx -Force
-            Write-Host "COMPLETE"
-            Write-Host "Updating Mapi over Http virtual directory..." -ForegroundColor Green -NoNewline
-            Get-MapiVirtualDirectory -Server $ServerName | Set-MapiVirtualDirectory -InternalUrl https://$intHostname/mapi -ExternalUrl https://$extHostname/mapi
-            Write-Host "COMPLETE"
-            Write-Host "Updating Exchange ActiveSync virtual directory..." -ForegroundColor Green -NoNewline
-            Get-ActiveSyncVirtualDirectory -Server $ServerName | Set-ActiveSyncVirtualDirectory -ExternalUrl https://$extHostname/Microsoft-Server-ActiveSync
-            Write-Host "COMPLETE"
-            Write-Host "Updating Offline Address Book virtual directory..." -ForegroundColor Green -NoNewline
-            Get-OabVirtualDirectory -Server $ServerName | Set-OabVirtualDirectory -InternalUrl https://$intHostname/oab -ExternalUrl https://$extHostname/oab
-            Write-Host "COMPLETE"
-            Write-Host "Updating Outlook Anywhere settings..." -ForegroundColor Green -NoNewline
-            Get-OutlookAnywhere -Server $ServerName | Set-OutlookAnywhere -InternalClientAuthenticationMethod Negotiate -InternalHostname $intHostname -InternalClientsRequireSsl:$False -ExternalClientAuthenticationMethod Ntlm -ExternalClientsRequireSsl:$True -ExternalHostname $extHostname
-            Write-Host "COMPLETE"
-            Write-Host "Updating Outlook Web App virtual directory..." -ForegroundColor Green -NoNewline
-            Get-OwaVirtualDirectory -Server $ServerName | Set-OwaVirtualDirectory -InternalUrl https://$intHostname/owa -ExternalUrl https://$extHostname/owa -LogonFormat UserName -DefaultDomain $ExchangeInstall_LocalizedStrings.res_0014
-            Write-Host "COMPLETE"
+        Write-Host "Configuring virtual directories..." -ForegroundColor Green
+        switch ($ExchangeInstall_LocalizedStrings.res_0004) {
+            0 {
+                $intHostname = $ExchangeInstall_LocalizedStrings.res_0020
+                $extHostname = $ExchangeInstall_LocalizedStrings.res_0021
+                if($intHostname -ne $null -and $extHostname -ne $null) {
+                    Write-Host "Updating Autodiscover URL..." -ForegroundColor Green -NoNewline
+                    Get-ClientAccessServer $ServerName | Set-ClientAccessServer -AutoDiscoverServiceInternalUri https://$intHostname/Autodiscover/Autodiscover.xml
+                    Write-Host "COMPLETE"
+                    Write-Host "Updating Exchange Control Panel virtual directory..." -ForegroundColor Green -NoNewline
+                    Get-EcpVirtualDirectory -Server $ServerName |Set-EcpVirtualDirectory -InternalUrl https://$intHostname/ecp -ExternalUrl https://$extHostname/ecp
+                    Write-Host "COMPLETE"
+                    Write-Host "Updating Exchange Web Services virtual directory..." -ForegroundColor Green -NoNewline
+                    Get-WebServicesVirtualDirectory -Server $ServerName | Set-WebServicesVirtualDirectory -InternalUrl https://$intHostname/ews/exchange.asmx -ExternalUrl https://$extHostname/ews/exchange.asmx -Force
+                    Write-Host "COMPLETE"
+                    Write-Host "Updating Mapi over Http virtual directory..." -ForegroundColor Green -NoNewline
+                    Get-MapiVirtualDirectory -Server $ServerName | Set-MapiVirtualDirectory -InternalUrl https://$intHostname/mapi -ExternalUrl https://$extHostname/mapi
+                    Write-Host "COMPLETE"
+                    Write-Host "Updating Exchange ActiveSync virtual directory..." -ForegroundColor Green -NoNewline
+                    Get-ActiveSyncVirtualDirectory -Server $ServerName | Set-ActiveSyncVirtualDirectory -ExternalUrl https://$extHostname/Microsoft-Server-ActiveSync
+                    Write-Host "COMPLETE"
+                    Write-Host "Updating Offline Address Book virtual directory..." -ForegroundColor Green -NoNewline
+                    Get-OabVirtualDirectory -Server $ServerName | Set-OabVirtualDirectory -InternalUrl https://$intHostname/oab -ExternalUrl https://$extHostname/oab
+                    Write-Host "COMPLETE"
+                    Write-Host "Updating Outlook Anywhere settings..." -ForegroundColor Green -NoNewline
+                    Get-OutlookAnywhere -Server $ServerName | Set-OutlookAnywhere -InternalClientAuthenticationMethod Negotiate -InternalHostname $intHostname -InternalClientsRequireSsl:$False -ExternalClientAuthenticationMethod Ntlm -ExternalClientsRequireSsl:$True -ExternalHostname $extHostname
+                    Write-Host "COMPLETE"
+                    Write-Host "Updating Outlook Web App virtual directory..." -ForegroundColor Green -NoNewline
+                    Get-OwaVirtualDirectory -Server $ServerName | Set-OwaVirtualDirectory -InternalUrl https://$intHostname/owa -ExternalUrl https://$extHostname/owa -LogonFormat UserName -DefaultDomain $ExchangeInstall_LocalizedStrings.res_0014
+                    Write-Host "COMPLETE"
+                }
+            }
+            1 {
+                Write-Host "Updating Autodiscover URL..." -ForegroundColor Green -NoNewline
+                Get-ClientAccessServer $ServerName | Set-ClientAccessServer -AutoDiscoverServiceInternalUri $ExchangeInstall_LocalizedStrings.res_0038 -AutoDiscoverSiteScope $ExchangeInstall_LocalizedStrings.res_0058
+                Write-Host "COMPLETE"
+                Write-Host "Updating Exchange Control Panel virtual directory..." -ForegroundColor Green -NoNewline
+                Get-EcpVirtualDirectory -Server $ServerName |Set-EcpVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.res_0039 -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0040
+                Write-Host "COMPLETE"
+                Write-Host "Updating Exchange Web Services virtual directory..." -ForegroundColor Green -NoNewline
+                Get-WebServicesVirtualDirectory -Server $ServerName | Set-WebServicesVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.res_0041 -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0042 -Force
+                Write-Host "COMPLETE"
+                Write-Host "Updating Mapi over Http virtual directory..." -ForegroundColor Green -NoNewline
+                Get-MapiVirtualDirectory -Server $ServerName | Set-MapiVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.res_0043 -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0044
+                Write-Host "COMPLETE"
+                Write-Host "Updating Exchange ActiveSync virtual directory..." -ForegroundColor Green -NoNewline
+                Get-ActiveSyncVirtualDirectory -Server $ServerName | Set-ActiveSyncVirtualDirectory -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0045
+                Write-Host "COMPLETE"
+                Write-Host "Updating Offline Address Book virtual directory..." -ForegroundColor Green -NoNewline
+                Get-OabVirtualDirectory -Server $ServerName | Set-OabVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.res_0046 -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0047
+                Write-Host "COMPLETE"
+                Write-Host "Updating Outlook Anywhere settings..." -ForegroundColor Green -NoNewline
+                if($ExchangeInstall_LocalizedStrings.res_0049 -eq "True") {[bool]$InternalAuth = $True}
+                else {[bool]$InternalAuth = $false}
+                if($ExchangeInstall_LocalizedStrings.res_0052 -eq "True") {[bool]$ExternalAuth = $True}
+                else {[bool]$ExternalAuth = $false}
+                Get-OutlookAnywhere -Server $ServerName | Set-OutlookAnywhere -InternalClientAuthenticationMethod $ExchangeInstall_LocalizedStrings.res_0050 -InternalHostname $ExchangeInstall_LocalizedStrings.res_0048 -InternalClientsRequireSsl $InternalAuth -ExternalClientAuthenticationMethod $ExchangeInstall_LocalizedStrings.res_0053 -ExternalClientsRequireSsl $ExternalAuth -ExternalHostname $ExchangeInstall_LocalizedStrings.res_0051
+                Write-Host "COMPLETE"
+                Write-Host "Updating Outlook Web App virtual directory..." -ForegroundColor Green -NoNewline
+                Get-OwaVirtualDirectory -Server $ServerName | Set-OwaVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.res_0054 -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0055 -LogonFormat $ExchangeInstall_LocalizedStrings.res_0056 -DefaultDomain $ExchangeInstall_LocalizedStrings.res_0057
+                Write-Host "COMPLETE"
+            }
         }
         ## Check whether to create a new DAG or to end the script
         switch ($ExchangeInstall_LocalizedStrings.res_0004) { ## Checking new or restore
@@ -510,8 +538,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                         }
                     }
                     2 { ## Standalone server install
-                        ## Install critical March 2021 security update
-                        if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-Exch2013SU}
+                        ## Install latest Exchange security update
+                        Install-ExchSU
                         Write-Host "Server installation complete"
                         Restart-Computer
                     }
@@ -519,8 +547,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             }
             1 { ## This was a recover server and must determine whether a DAG member or standalone server
                 if($DagName -eq $null) {
-                    ## Install critical March 2021 security update
-                    if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-Exch2013SU}
+                    ## Install latest Exchange security update
+                    Install-ExchSU
                     Write-Host "Server installation complete"
                     Start-Sleep -Seconds 5
                     Restart-Computer
@@ -589,9 +617,9 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                 Set-ActivationPreferences "c:\Temp\$ServerName-$DagName-ActivationPreferences.txt"
             }
         }
+        ## Install latest Exchange security update
+        Install-ExchSU
         ## Exchange server setup is complete
-        ## Install critical March 2021 security update
-        if($ExchangeInstall_LocalizedStrings.res_0003 -eq 0) {Install-Exch2013SU}
         Restart-Computer
     }
     1{ ## Finalize DC setup
@@ -623,8 +651,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
 # SIG # Begin signature block
 # MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDrj9nnTOCf1O7b
-# j60Uq1miEaMH4HSnKgzYMO0KAKIV3aCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCCwSKRHZZR7QZYR
+# XETcXMXariQ5Ltgg1WN7hc/iAS3QVqCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
 # u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
 # cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
 # BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
@@ -645,11 +673,11 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
 # HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
 # NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
 # AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
-# CSqGSIb3DQEJBDEiBCAwzegKbM/D3/F1TanGoDFhPT+9v2Ova5BJ0kAVAQdkLzAN
-# BgkqhkiG9w0BAQEFAASCAQCW5WEoM8kikdMa57tJ0AosywLw9ATXnVhHGGJ3lfSY
-# wfCoKcBNIPBbpztqbilha42nynRaWTFQoBst8uFvfsBPipFbMNqg9/rFyplacMu/
-# D2RvJGAoAIsxm7trZFfijEAptg9eQgDLF+/W6PpQA36wRD4GSaDpER4io6BsGH60
-# N5HHVGbqUrd6MpV2F69gwf3ZBr14xrarO77w/wU7tINR0QaNZABKrnbQoq0uerD4
-# Luq3A3wrSWCdONu88dv3IZiqlogh1C8+tfcEcdEZX7lz73b+4ZHdkjJxhuayiV35
-# cdoeorEkCnVm10j3EhW5v3WZjPnz6wB7osZqWcVsDWgR
+# CSqGSIb3DQEJBDEiBCD/tdHh1gvYQb6250/oBUq2ermbBc7jirPTw4ihAIhrSDAN
+# BgkqhkiG9w0BAQEFAASCAQB4pfxWqKkhVpU1unfYaFDnWuyLm8ByFoV86iD8/Pv9
+# kUgZaccdwZZRBwbo4YsrZVvahTA/e/8Gx00sRZ2D/3J3tmMtkYu4GZcod49b/9+R
+# 58kBE3uC+w3B2NPZz8uvUPwk3nywjx2NH3KSN1lYjwn62RLlddy/Iz9YdWotvG99
+# H9uoJcPoZrNpCfmh1ui0myYlnq6BFCgEB9DMtAZimXg9ZZqvAMmv348LtT0SYh7N
+# BFnDErtPVtylgRN4+MYYFsmHKu2Zkv/09CiuluB5ffY2jmDSZpcMoDUVPBasKebr
+# ffRp9auee6sTCrKv8FslofLiI7/AAVubMAkxuQusv29W
 # SIG # End signature block
