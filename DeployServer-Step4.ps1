@@ -62,11 +62,11 @@ function Install-Exch2013SU {
 }
 function Install-Exch2016SU{
 ## Download and install October 2021 Security Update for Exchange 2013 CU23
-    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -eq "15.01.2308.008") {
+    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2308*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU21..." -ForegroundColor Green 
         Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/9/8/d98e7392-989b-484e-ac4b-4faff80082c8/Exchange2016-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2016-KB5007409-x64-en.msp" 
     }
-    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -eq "15.01.2375.007") {
+    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2375*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU22..." -ForegroundColor Green
         Invoke-WebRequest -Uri "https://download.microsoft.com/download/1/d/d/1ddec463-8aad-4907-9978-3a8a4f591e87/Exchange2016-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2016-KB5007409-x64-en.msp" 
     }
@@ -83,11 +83,11 @@ function Install-Exch2016SU{
 }
 function Install-Exch2019SU{
     ## Download and install October 2021 Security Update for Exchange 2013 CU23
-    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -eq "15.02.0922.007") {
+    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.0922*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU10..." -ForegroundColor Green 
         Invoke-WebRequest -Uri "https://download.microsoft.com/download/1/1/b/11bb0e81-9a51-4a78-b039-92462b184eb0/Exchange2019-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2019-KB5007409-x64-en.msp" 
     }
-    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -eq "15.02.0986.005") {
+    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.0986*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU11..." -ForegroundColor Green 
         Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/a/1/ba1bf2f2-91f1-4670-882f-2d62506444e0/Exchange2019-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2019-KB5007409-x64-en.msp" 
     }
