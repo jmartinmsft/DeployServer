@@ -70,7 +70,7 @@ function Install-Exch2016SU{
         Write-Host "Downloading Security Update for Exchange 2016 CU22..." -ForegroundColor Green
         Invoke-WebRequest -Uri "https://download.microsoft.com/download/1/d/d/1ddec463-8aad-4907-9978-3a8a4f591e87/Exchange2016-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2016-KB5007409-x64-en.msp" 
     }
-    if(Get-Item C:\Temp\Exchange2016-KB5007012-x64-en.msp -ErrorAction Ignore) {
+    if(Get-Item C:\Temp\Exchange2016-KB5007409-x64-en.msp -ErrorAction Ignore) {
         Write-Host "Installing October 2021 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
         Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5007409-x64-en.msp /passive /norestart"
         Start-Sleep -Seconds 10
@@ -91,7 +91,7 @@ function Install-Exch2019SU{
         Write-Host "Downloading Security Update for Exchange 2019 CU11..." -ForegroundColor Green 
         Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/a/1/ba1bf2f2-91f1-4670-882f-2d62506444e0/Exchange2019-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2019-KB5007409-x64-en.msp" 
     }
-    if(Get-Item C:\Temp\Exchange2019-KB5007012-x64-en.msp -ErrorAction Ignore) {
+    if(Get-Item C:\Temp\Exchange2019-KB5007409-x64-en.msp -ErrorAction Ignore) {
         Write-Host "Installing November 2021 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
         Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5007409-x64-en.msp /passive /norestart"
         Start-Sleep -Seconds 10
