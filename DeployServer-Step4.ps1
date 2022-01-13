@@ -48,33 +48,33 @@ function Install-ExchSU {
     }
 }
 function Install-Exch2013SU {
-    ## Download and install October 2021 Security Update for Exchange 2013 CU23
+    ## Download and install January 2022 Security Update for Exchange 2013 CU23
     Write-Host "Downloading Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Invoke-WebRequest -Uri "https://download.microsoft.com/download/5/2/4/524bc743-34a7-4f6f-9853-e41325cda73a/Exchange2013-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2013-KB5007409-x64-en.msp" 
-    Write-Host "Installing November 2021 Security Update for Exchange 2013..." -ForegroundColor Green -NoNewline
-    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5007409-x64-en.msp /passive /norestart"
+    Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/a/f/baf576c9-f5d6-44e0-84c1-c97add5f627b/Exchange2013-KB5008631-x64-en.msp" -OutFile "C:\Temp\Exchange2013-KB5008631-x64-en.msp" 
+    Write-Host "Installing January 2022 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
+    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5008631-x64-en.msp /passive /norestart"
     Start-Sleep -Seconds 10
-    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5007409)"} -ErrorAction SilentlyContinue) {
+    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5008631)"} -ErrorAction SilentlyContinue) {
         Write-Host "..." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 10
     }
     Write-Host "COMPLETE"
 }
 function Install-Exch2016SU{
-## Download and install October 2021 Security Update for Exchange 2013 CU23
+## Download and install Security Update for Exchange 2016
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2308*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU21..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/9/8/d98e7392-989b-484e-ac4b-4faff80082c8/Exchange2016-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2016-KB5007409-x64-en.msp" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/a/a/a/aaa3b6bf-543e-49f9-9403-faf3a8afe5a9/Exchange2016-KB5008631-x64-en.msp" -OutFile "C:\Temp\Exchange2016-KB5008631-x64-en.msp" 
     }
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2375*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU22..." -ForegroundColor Green
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/1/d/d/1ddec463-8aad-4907-9978-3a8a4f591e87/Exchange2016-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2016-KB5007409-x64-en.msp" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/8/0/9/80947b03-7fd2-44fe-877f-7870f9bedfb8/Exchange2016-KB5008631-x64-en.msp" -OutFile "C:\Temp\Exchange2016-KB5008631-x64-en.msp" 
     }
     if(Get-Item C:\Temp\Exchange2016-KB5007409-x64-en.msp -ErrorAction Ignore) {
-        Write-Host "Installing October 2021 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
-        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5007409-x64-en.msp /passive /norestart"
+        Write-Host "Installing January 2022 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5008631-x64-en.msp /passive /norestart"
         Start-Sleep -Seconds 10
-        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5007409*"} -ErrorAction SilentlyContinue) {
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5008631*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
         }
@@ -82,20 +82,20 @@ function Install-Exch2016SU{
     }
 }
 function Install-Exch2019SU{
-    ## Download and install October 2021 Security Update for Exchange 2013 CU23
+    ## Download and install January 2022 Security Update for Exchange 2019
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.0922*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU10..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/1/1/b/11bb0e81-9a51-4a78-b039-92462b184eb0/Exchange2019-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2019-KB5007409-x64-en.msp" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/4/d/9/4d9bc4d8-d64b-4237-a39a-792e4907bfff/Exchange2019-KB5008631-x64-en.msp" -OutFile "C:\Temp\Exchange2019-KB5008631-x64-en.msp" 
     }
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.0986*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU11..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/a/1/ba1bf2f2-91f1-4670-882f-2d62506444e0/Exchange2019-KB5007409-x64-en.msp" -OutFile "C:\Temp\Exchange2019-KB5007409-x64-en.msp" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/e/6/4/e643edcb-923f-4a47-8948-5e088196fcd6/Exchange2019-KB5008631-x64-en.msp" -OutFile "C:\Temp\Exchange2019-KB5008631-x64-en.msp" 
     }
     if(Get-Item C:\Temp\Exchange2019-KB5007409-x64-en.msp -ErrorAction Ignore) {
-        Write-Host "Installing November 2021 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
-        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5007409-x64-en.msp /passive /norestart"
+        Write-Host "Installing January 2022 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5008631-x64-en.msp /passive /norestart"
         Start-Sleep -Seconds 10
-        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5007409*"} -ErrorAction SilentlyContinue) {
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5008631*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
         }
@@ -649,35 +649,23 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
 }
 
 # SIG # Begin signature block
-# MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
+# MIIDZwYJKoZIhvcNAQcCoIIDWDCCA1QCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAGDBzccQd3SlPq
-# oP2MoJHT3ZLMoulkXAC8s2CL+h1FQaCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
-# u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
-# cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
-# BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
-# ggEPADCCAQoCggEBAMSWhFMKzV8qMywbj1H6lg4h+cvR9CtxmQ1J3V9uf9+R2d9p
-# laoDqCNS+q8wz+t+QffvmN2YbcsHrXp6O7bF+xYjuPtIurv8wM69RB/Uy1xvsUKD
-# L/ZDQZ0zewMDLb5Nma7IYJCPYelHiSeO0jsyLXTnaOG0Rq633SUkuPv+C3N8GzVs
-# KDnxozmHGYq/fdQEv9Bpci2DkRTtnHvuIreeqsg4lICeTIny8jMY4yC6caQkamzp
-# GcJWWO0YZlTQOaTgHoVVnSZAvdJhzxIX2wqd0/VaVIbpN0HcPKtMrgXv0O2Bl4Lo
-# tmZR7za7H6hamxaPYQHHyReFs2xM7hlVVWhnfpECAwEAAaNoMGYwDgYDVR0PAQH/
-# BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMDMCAGA1UdEQQZMBeCFWptYXJ0aW5A
-# bWljcm9zb2Z0LmNvbTAdBgNVHQ4EFgQUCB04A8myETdoRJU9zsScvFiRGYkwDQYJ
-# KoZIhvcNAQELBQADggEBAEjsxpuXMBD72jWyft6pTxnOiTtzYykYjLTsh5cRQffc
-# z0sz2y+jL2WxUuiwyqvzIEUjTd/BnCicqFC5WGT3UabGbGBEU5l8vDuXiNrnDf8j
-# zZ3YXF0GLZkqYIZ7lUk7MulNbXFHxDwMFD0E7qNI+IfU4uaBllsQueUV2NPx4uHZ
-# cqtX4ljWuC2+BNh09F4RqtYnocDwJn3W2gdQEAv1OQ3L6cG6N1MWMyHGq0SHQCLq
-# QzAn5DpXfzCBAePRcquoAooSJBfZx1E6JeV26yw2sSnzGUz6UMRWERGPeECSTz3r
-# 8bn3HwYoYcuV+3I7LzEiXOdg3dvXaMf69d13UhMMV1sxggHdMIIB2QIBATA0MCAx
-# HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
-# NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
-# AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
-# CSqGSIb3DQEJBDEiBCAVzoM/3cjUb8tyMBhQ4vI4zOwmjLciiHIUMKsTLDDpGTAN
-# BgkqhkiG9w0BAQEFAASCAQBK9boRDmYVQUdVEwWPxrVLb6Lm6p6F+vPGkyi3QPZJ
-# HiAqguV7WTh1WH6Fxnpo0KNapiMpowze/LQ+6KCc7B2fiBBuzuHjFX6AITIEmv7d
-# QTKLBH0QgHZRi7eEFhTUkm8s02u6I6Sj+KQadgutCZhZRGifJJdy4keFecmLq/5W
-# mq13KKZdGXdw+7FeXcNzNgTqW/65ENKxlvBISoCGvfoRK0p8De4lLHH8jqyV+YtA
-# zcDgU3MnbazkS7YAdUsoeuHZkMT04TxXOkSqMZBqXULTMGoB/rpvvd2o2LmurmTp
-# gLGTVzwcwo+pynVnKdoj7hlSjX+40sbYCg+T/+jBBW1r
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCClE8mWBXq/rOlv
+# qcNdON/pVQaKZQKMqA1Py2L9s4ACKaCCAZQwggGQMIIBFaADAgECAggmFxDWcEY7
+# FTAKBggqhkjOPQQDAzAvMS0wKwYDVQQDEyQ3ZDMxYjI0NC05N2Y5LTQxZDAtYjQ5
+# OS1mYzI0NjMxYmE1YTIwHhcNMjIwMTA0MDE1NjM2WhcNMjMwMTA0MTM1NjM2WjAv
+# MS0wKwYDVQQDEyQ3ZDMxYjI0NC05N2Y5LTQxZDAtYjQ5OS1mYzI0NjMxYmE1YTIw
+# djAQBgcqhkjOPQIBBgUrgQQAIgNiAASUaEmnP41/+lLXJYyUrAgHkTJAAh5eGabX
+# yxoIVZ37/dE/Iyiy8rOraIaAkOEvswb4feDM96Chr0Dvd5DAVGWuxyVSh2xjFfyN
+# P8jCulJgDFNospS9R5aX2h4y5WEn4XUwCgYIKoZIzj0EAwMDaQAwZgIxAJE52jMb
+# c2lnsNMc5DrmsWk9mcWp2nR61oCAY+kBFkVXG229SrsU2QDG/4aCV3i74gIxAJ2p
+# Ym1jSnD1MLCS6W4mpeHGgXoXbXOJ9jqRbWqc3g5ZdDxUXiUo66sVuT2YElKsgDGC
+# ASkwggElAgEBMDswLzEtMCsGA1UEAxMkN2QzMWIyNDQtOTdmOS00MWQwLWI0OTkt
+# ZmMyNDYzMWJhNWEyAggmFxDWcEY7FTANBglghkgBZQMEAgEFAKBeMBAGCisGAQQB
+# gjcCAQwxAjAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMC8GCSqGSIb3DQEJ
+# BDEiBCChZIAEOtt0Sw+GLxaG/A+pjAHWs7q5YwVinFofaR4rzjALBgcqhkjOPQIB
+# BQAEZzBlAjEAlSKg37ZethWQUMrUrOVZGNtJrkQx5N50L25+WBP2gWhbWkDwTglb
+# 3V5d+u2t5JP5AjAk4GHg5VVs/ElE19Kn8xh5fADxMBdAj9Z6Cvf7J8E2/rI1/wje
+# nGZ0N8UTngHcIsM=
 # SIG # End signature block
