@@ -1,6 +1,6 @@
 ﻿<#
 // DeployServer-Step4.ps1
-// Modified 2021/10/26
+// Modified 13 January 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
 // Version: v1.3
@@ -70,7 +70,7 @@ function Install-Exch2016SU{
         Write-Host "Downloading Security Update for Exchange 2016 CU22..." -ForegroundColor Green
         Invoke-WebRequest -Uri "https://download.microsoft.com/download/8/0/9/80947b03-7fd2-44fe-877f-7870f9bedfb8/Exchange2016-KB5008631-x64-en.msp" -OutFile "C:\Temp\Exchange2016-KB5008631-x64-en.msp" 
     }
-    if(Get-Item C:\Temp\Exchange2016-KB5007409-x64-en.msp -ErrorAction Ignore) {
+    if(Get-Item C:\Temp\Exchange2016-KB5008631-x64-en.msp -ErrorAction Ignore) {
         Write-Host "Installing January 2022 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
         Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5008631-x64-en.msp /passive /norestart"
         Start-Sleep -Seconds 10
@@ -91,7 +91,7 @@ function Install-Exch2019SU{
         Write-Host "Downloading Security Update for Exchange 2019 CU11..." -ForegroundColor Green 
         Invoke-WebRequest -Uri "https://download.microsoft.com/download/e/6/4/e643edcb-923f-4a47-8948-5e088196fcd6/Exchange2019-KB5008631-x64-en.msp" -OutFile "C:\Temp\Exchange2019-KB5008631-x64-en.msp" 
     }
-    if(Get-Item C:\Temp\Exchange2019-KB5007409-x64-en.msp -ErrorAction Ignore) {
+    if(Get-Item C:\Temp\Exchange2019-KB5008631-x64-en.msp -ErrorAction Ignore) {
         Write-Host "Installing January 2022 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
         Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5008631-x64-en.msp /passive /norestart"
         Start-Sleep -Seconds 10
@@ -651,8 +651,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
 # SIG # Begin signature block
 # MIIDZwYJKoZIhvcNAQcCoIIDWDCCA1QCAQExDzANBglghkgBZQMEAgEFADB5Bgor
 # BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCClE8mWBXq/rOlv
-# qcNdON/pVQaKZQKMqA1Py2L9s4ACKaCCAZQwggGQMIIBFaADAgECAggmFxDWcEY7
+# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCBe18hXR0geSKCz
+# 5RvYo6d5rW7clXZAkoxGKRt2Vmytx6CCAZQwggGQMIIBFaADAgECAggmFxDWcEY7
 # FTAKBggqhkjOPQQDAzAvMS0wKwYDVQQDEyQ3ZDMxYjI0NC05N2Y5LTQxZDAtYjQ5
 # OS1mYzI0NjMxYmE1YTIwHhcNMjIwMTA0MDE1NjM2WhcNMjMwMTA0MTM1NjM2WjAv
 # MS0wKwYDVQQDEyQ3ZDMxYjI0NC05N2Y5LTQxZDAtYjQ5OS1mYzI0NjMxYmE1YTIw
@@ -664,8 +664,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
 # ASkwggElAgEBMDswLzEtMCsGA1UEAxMkN2QzMWIyNDQtOTdmOS00MWQwLWI0OTkt
 # ZmMyNDYzMWJhNWEyAggmFxDWcEY7FTANBglghkgBZQMEAgEFAKBeMBAGCisGAQQB
 # gjcCAQwxAjAAMBkGCSqGSIb3DQEJAzEMBgorBgEEAYI3AgEEMC8GCSqGSIb3DQEJ
-# BDEiBCChZIAEOtt0Sw+GLxaG/A+pjAHWs7q5YwVinFofaR4rzjALBgcqhkjOPQIB
-# BQAEZzBlAjEAlSKg37ZethWQUMrUrOVZGNtJrkQx5N50L25+WBP2gWhbWkDwTglb
-# 3V5d+u2t5JP5AjAk4GHg5VVs/ElE19Kn8xh5fADxMBdAj9Z6Cvf7J8E2/rI1/wje
-# nGZ0N8UTngHcIsM=
+# BDEiBCD+PG1Xak8s8ESYsQztCps5Y5jFotkyA7Fix2bmmbYBazALBgcqhkjOPQIB
+# BQAEZzBlAjEAuuVHe4OqfvZD24lFD2jE1hrd7e/m4xIFztwPzCWbmDycmCuOR6xO
+# j8iqxQevCV2+AjBfNBiM8jSQfK1YmPn2jhx6IFGp9QgtV9sIrttwTKaNLKSumIl9
+# 021c2fZAWmaf1CQ=
 # SIG # End signature block
