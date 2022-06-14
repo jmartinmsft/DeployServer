@@ -2,10 +2,10 @@
 //***********************************************************************
 //
 // Deploy-Server.ps1
-// Modified 2021/10/26
+// Modified 14 June 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.6
+// Version: v1.7
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -128,7 +128,7 @@ function Move-MailboxDatabaseBestEffort {
 function Get-ExchangeISO {
         Write-Host "Please select the Exchange ISO" -ForegroundColor Yellow
         Start-Sleep -Seconds 2
-        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="C:\ISO"; Title="Select the Exchange ISO"}
+        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="G:\ISO"; Title="Select the Exchange ISO"}
         $fileBrowser.Filter = "ISO (*.iso)| *.iso"
         $fileBrowser.ShowDialog()
         [string]$exoISO = $fileBrowser.FileName
@@ -207,7 +207,7 @@ function Get-VMParentDisk {
         Write-Host "Please select the parent VHD disk" -ForegroundColor Yellow
         Start-Sleep -Seconds 2
         while($parentVHD.Length -eq 0) {
-            $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="C:\VHDs"; Title="Select the parent VHD"}
+            $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="G:\VHDs"; Title="Select the parent VHD"}
             $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
             $fileBrowser.ShowDialog()
             [string]$parentVHD = $fileBrowser.FileName
@@ -224,7 +224,7 @@ function Get-VMBaseDisk {
     Write-Host "Please select the base VHD image" -ForegroundColor Yellow
     Start-Sleep -Seconds 2
     while($serverVHD.Length -eq 0) {
-        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="C:\VHDs"; Title="Select the Exchange VHD"}
+        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="G:\VHDs"; Title="Select the Exchange VHD"}
         $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
         $fileBrowser.ShowDialog()
         [string]$serverVHD = $fileBrowser.FileName
@@ -1405,11 +1405,13 @@ while($deployServer -eq $true) {
         ## Need to check for c:\Temp
         New-Item -ItemType Directory -Path "\\$exchServer\c$\Temp" -ErrorAction Ignore | Out-Null
         if(Get-Item "C:\Temp\$ServerName-Exchange.pfx" -ErrorAction Ignore) { Remove-Item "C:\Temp\$ServerName-Exchange.pfx" -Confirm:$False -Force}
-        Export-ExchangeCertificate -Server $certServer -Thumbprint $thumb -FileName "C:\Temp\$ServerName-Exchange.pfx" -BinaryEncoded -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force) | Out-Null
-        $certServerDrive = "\\$exchServer\c$\temp"
-        New-PSDrive -Name "Script" -PSProvider FileSystem -Root $certServerDrive -Credential $credential
-        Copy-Item -Path "Script:\$ServerName-Exchange.pfx" -Destination C:\Temp
-        Remove-PSDrive -Name "Script"
+        $cert = Export-ExchangeCertificate -Server $exchServer -Thumbprint $thumb -BinaryEncoded -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force)
+        Set-Content -Path "c:\Temp\$ServerName-Exchange.pfx" -Value $cert.FileData -Encoding Byte
+        #Export-ExchangeCertificate -Server $certServer -Thumbprint $thumb -FileName "C:\Temp\$ServerName-Exchange.pfx" -BinaryEncoded -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force) | Out-Null
+        #$certServerDrive = "\\$exchServer\c$\temp"
+        #New-PSDrive -Name "Script" -PSProvider FileSystem -Root $certServerDrive -Credential $credential
+        #Copy-Item -Path "Script:\$ServerName-Exchange.pfx" -Destination C:\Temp
+        #Remove-PSDrive -Name "Script"
         Write-Host "COMPLETE"
     }
     $noExchange = $false
@@ -1581,37 +1583,3 @@ foreach($v in $vmServers) {
     Remove-Item -Path $v"-VM-strings.psd1" -Force
     #vmconnect.exe $env:COMPUTERNAME $v
 }
-
-# SIG # Begin signature block
-# MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
-# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCB5lPRSzsbVGYP1
-# mEBbZTyYLZmevGWQIZ+EbsUjfFfZlKCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
-# u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
-# cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
-# BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
-# ggEPADCCAQoCggEBAMSWhFMKzV8qMywbj1H6lg4h+cvR9CtxmQ1J3V9uf9+R2d9p
-# laoDqCNS+q8wz+t+QffvmN2YbcsHrXp6O7bF+xYjuPtIurv8wM69RB/Uy1xvsUKD
-# L/ZDQZ0zewMDLb5Nma7IYJCPYelHiSeO0jsyLXTnaOG0Rq633SUkuPv+C3N8GzVs
-# KDnxozmHGYq/fdQEv9Bpci2DkRTtnHvuIreeqsg4lICeTIny8jMY4yC6caQkamzp
-# GcJWWO0YZlTQOaTgHoVVnSZAvdJhzxIX2wqd0/VaVIbpN0HcPKtMrgXv0O2Bl4Lo
-# tmZR7za7H6hamxaPYQHHyReFs2xM7hlVVWhnfpECAwEAAaNoMGYwDgYDVR0PAQH/
-# BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMDMCAGA1UdEQQZMBeCFWptYXJ0aW5A
-# bWljcm9zb2Z0LmNvbTAdBgNVHQ4EFgQUCB04A8myETdoRJU9zsScvFiRGYkwDQYJ
-# KoZIhvcNAQELBQADggEBAEjsxpuXMBD72jWyft6pTxnOiTtzYykYjLTsh5cRQffc
-# z0sz2y+jL2WxUuiwyqvzIEUjTd/BnCicqFC5WGT3UabGbGBEU5l8vDuXiNrnDf8j
-# zZ3YXF0GLZkqYIZ7lUk7MulNbXFHxDwMFD0E7qNI+IfU4uaBllsQueUV2NPx4uHZ
-# cqtX4ljWuC2+BNh09F4RqtYnocDwJn3W2gdQEAv1OQ3L6cG6N1MWMyHGq0SHQCLq
-# QzAn5DpXfzCBAePRcquoAooSJBfZx1E6JeV26yw2sSnzGUz6UMRWERGPeECSTz3r
-# 8bn3HwYoYcuV+3I7LzEiXOdg3dvXaMf69d13UhMMV1sxggHdMIIB2QIBATA0MCAx
-# HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
-# NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
-# AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
-# CSqGSIb3DQEJBDEiBCAylp2wgEbC88e8a1NgsdkLLvoSXNM0OSlurm9EO/yJEDAN
-# BgkqhkiG9w0BAQEFAASCAQBedYLPKa/SaucD6CZmG4aE+CrUsdJzkscj3YqCcklg
-# SHNoplRhwwfRO+5wgaSxY2SdK42ywQVlblCE5brmHcl/KBIP3Y+IeQSMjSlR8Iux
-# LG9BBjXOddTz8omEoNWNSeVLAKYpZClrg4IHSGPWHprmuxtWzYTjw1+b9+kl4T79
-# H843768bzwV3gf6iYW9LqPnSAen3LiuTvca1Y0zJmL+pRS3l0yAnqasjZdyFQ4uJ
-# dR9+MkgLAW9evSP3D4cqzSzgrK3TR6et1OzEqz+sdc+fs+de98YXom3K6dXL/RbZ
-# 9jiAltHepbiMgFJALTItXgyX6p1eGSgASfoTHLYtPWFs
-# SIG # End signature block

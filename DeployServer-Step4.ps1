@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step4.ps1
-// Modified 09 March 2022
+// Modified 14 June 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.3.1
+// Version: v1.3.2
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -447,7 +447,8 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         if($ExchangeInstall_LocalizedStrings.res_0002 -ne $null) {        
             Write-Host "Importing Exchange certificate and assigning services..." -ForegroundColor Green
             $transportCert = (Get-TransportService $ServerName).InternalTransportCertificateThumbprint
-            Import-ExchangeCertificate -Server $ServerName -FileName "C:\Temp\$ServerName-Exchange.pfx" -Password (ConvertTo-SecureString -String "Pass@word1" -AsPlainText -Force) -PrivateKeyExportable:$True | Out-Null
+            #Import-ExchangeCertificate -Server $ServerName -FileName "C:\Temp\$ServerName-Exchange.pfx" -Password (ConvertTo-SecureString -String "Pass@word1" -AsPlainText -Force) -PrivateKeyExportable:$True | Out-Null
+            Import-ExchangeCertificate -Server $ServerName -FileData ([Byte[]]$(Get-Content -Path "C:\Temp\$ServerName-Exchange.pfx" -Encoding byte)) -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force) -PrivateKeyExportable:$True
             Enable-ExchangeCertificate -Thumbprint $ExchangeInstall_LocalizedStrings.res_0002 -Services IIS,SMTP -Server $ServerName -Force
             ## Reset the transport service certificate back to the original self-signed certificate
             Enable-ExchangeCertificate -Thumbprint $transportCert -Services SMTP -Server $ServerName -Force
