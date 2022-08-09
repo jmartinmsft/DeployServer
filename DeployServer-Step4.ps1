@@ -48,13 +48,13 @@ function Install-ExchSU {
     }
 }
 function Install-Exch2013SU {
-    ## Download and install March 2022 Security Update for Exchange 2013 CU23
+    ## Download and install August 2022 Security Update for Exchange 2013 CU23
     Write-Host "Downloading Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Invoke-WebRequest -Uri "https://download.microsoft.com/download/e/2/4/e248e85e-12e8-4f22-9301-967afa639734/Exchange2013-KB5014260-x64-en.exe" -OutFile "C:\Temp\Exchange2013-KB5014260-x64-en.exe" 
-    Write-Host "Installing May 2022 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
-    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5014260-x64-en.exe /passive"
+    Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/d/4/bd4d3875-055b-4450-9ae7-ed34a0b051a8/Exchange2013-KB5015321-x64-en.exe" -OutFile "C:\Temp\Exchange2013-KB5015321-x64-en.exe" 
+    Write-Host "Installing August 2022 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
+    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5015321-x64-en.exe /passive"
     Start-Sleep -Seconds 10
-    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5014260)"} -ErrorAction SilentlyContinue) {
+    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5015321)"} -ErrorAction SilentlyContinue) {
         Write-Host "..." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 10
     }
@@ -64,17 +64,17 @@ function Install-Exch2016SU{
 ## Download and install Security Update for Exchange 2016
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2308*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU22..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/5/f/e/5fefd2c9-3430-46dc-9db6-1ebc3474b630/Exchange2016-KB5014261-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5014261-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/6/8/d68be4c9-cb1b-45b2-a9a3-4a03c52b05c0/Exchange2016-KB5015322-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5015322-x64-en.exe" 
     }
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2507*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU23..." -ForegroundColor Green
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/5/5/d555a327-bfdd-45f0-ba44-a40cc982aa18/Exchange2016-KB5014261-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5014261-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/6/4/f/64f1b3a5-6e36-4123-b9da-3bd071940b0e/Exchange2016-KB5015322-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5015322-x64-en.exe" 
     }
     if(Get-Item C:\Temp\Exchange2016-KB5014261-x64-en.exe -ErrorAction Ignore) {
-        Write-Host "Installing May 2022 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
-        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5014261-x64-en.exe /passive"
+        Write-Host "Installing August 2022 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5015322-x64-en.exe /passive"
         Start-Sleep -Seconds 10
-        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5014261*"} -ErrorAction SilentlyContinue) {
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5015322*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
         }
@@ -85,17 +85,17 @@ function Install-Exch2019SU{
     ## Download and install May 2022 Security Update for Exchange 2019
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.0986*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU11..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/0/f/d/0fd79f2c-f7a5-4a60-bebe-0db804aeb816/Exchange2019-KB5014261-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5014261-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/c/f/3/cf38c014-e63e-4e6a-9e06-d28d4093f763/Exchange2019-KB5015322-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5015322-x64-en.exe" 
     }
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.1118*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU12..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/7/8/d78f35af-4d36-43ac-b66d-40e895e39fdb/Exchange2019-KB5014261-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5014261-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/8/0/4/80473b09-a81a-4816-9a79-56d5c5cc4b39/Exchange2019-KB5015322-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5015322-x64-en.exe" 
     }
     if(Get-Item C:\Temp\Exchange2019-KB5014261-x64-en.exe -ErrorAction Ignore) {
-        Write-Host "Installing May 2022 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
-        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5014261-x64-en.exe /passive"
+        Write-Host "Installing August 2022 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5015322-x64-en.exe /passive"
         Start-Sleep -Seconds 10
-        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5014261*"} -ErrorAction SilentlyContinue) {
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5015322*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
         }
@@ -207,6 +207,12 @@ function Enable-TLS {
     else {
         New-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SystemDefaultTlsVersions -Value 1 -PropertyType DWORD | Out-Null
     }
+    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -ErrorAction Ignore) {
+        Set-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -Value 1
+    }
+    else {
+        New-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
+    }
 
 ## Check for and enable TLS 1.2 for .NET framework 4.0
     if(Get-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -ErrorAction Ignore) {
@@ -214,6 +220,12 @@ function Enable-TLS {
     }
     else {
         New-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -Value 1 -PropertyType DWORD | Out-Null
+    }
+    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -ErrorAction Ignore) {
+        Set-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -Value 1
+    }
+    else {
+        New-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
     }
 }
 function Sync-ADConfigPartition {
