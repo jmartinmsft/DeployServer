@@ -53,7 +53,7 @@ function Install-Exch2013SU {
     Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/d/4/bd4d3875-055b-4450-9ae7-ed34a0b051a8/Exchange2013-KB5015321-x64-en.exe" -OutFile "C:\Temp\Exchange2013-KB5015321-x64-en.exe" 
     Write-Host "Installing August 2022 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
     Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5015321-x64-en.exe /passive"
-    Start-Sleep -Seconds 10
+    Start-Sleep -Seconds 30
     while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5015321)"} -ErrorAction SilentlyContinue) {
         Write-Host "..." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 10
@@ -70,10 +70,10 @@ function Install-Exch2016SU{
         Write-Host "Downloading Security Update for Exchange 2016 CU23..." -ForegroundColor Green
         Invoke-WebRequest -Uri "https://download.microsoft.com/download/6/4/f/64f1b3a5-6e36-4123-b9da-3bd071940b0e/Exchange2016-KB5015322-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5015322-x64-en.exe" 
     }
-    if(Get-Item C:\Temp\Exchange2016-KB5014261-x64-en.exe -ErrorAction Ignore) {
+    if(Get-Item C:\Temp\Exchange2016-KB5015322-x64-en.exe -ErrorAction Ignore) {
         Write-Host "Installing August 2022 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
         Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5015322-x64-en.exe /passive"
-        Start-Sleep -Seconds 10
+        Start-Sleep -Seconds 30
         while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5015322*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
@@ -91,10 +91,10 @@ function Install-Exch2019SU{
         Write-Host "Downloading Security Update for Exchange 2019 CU12..." -ForegroundColor Green 
         Invoke-WebRequest -Uri "https://download.microsoft.com/download/8/0/4/80473b09-a81a-4816-9a79-56d5c5cc4b39/Exchange2019-KB5015322-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5015322-x64-en.exe" 
     }
-    if(Get-Item C:\Temp\Exchange2019-KB5014261-x64-en.exe -ErrorAction Ignore) {
+    if(Get-Item C:\Temp\Exchange2019-KB5015322-x64-en.exe -ErrorAction Ignore) {
         Write-Host "Installing August 2022 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
         Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5015322-x64-en.exe /passive"
-        Start-Sleep -Seconds 10
+        Start-Sleep -Seconds 30
         while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5015322*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
@@ -214,6 +214,19 @@ function Enable-TLS {
         New-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
     }
 
+    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SystemDefaultTlsVersions -ErrorAction Ignore) {
+        Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SystemDefaultTlsVersions -Value 1
+    }
+    else {
+        New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SystemDefaultTlsVersions -Value 1 -PropertyType DWORD | Out-Null
+    }
+    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -ErrorAction Ignore) {
+        Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -Value 1
+    }
+    else {
+        New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
+    }
+
 ## Check for and enable TLS 1.2 for .NET framework 4.0
     if(Get-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -ErrorAction Ignore) {
         Set-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -Value 1
@@ -227,6 +240,90 @@ function Enable-TLS {
     else {
         New-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
     }
+    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -ErrorAction Ignore) {
+        Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -Value 1
+    }
+    else {
+        New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -Value 1 -PropertyType DWORD | Out-Null
+    }
+    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -ErrorAction Ignore) {
+        Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -Value 1
+    }
+    else {
+        New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
+    }
+#region Disable TLS 1.0
+    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0' -ErrorAction Ignore)) {
+        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols' -Name "TLS 1.0" | Out-Null
+    }
+    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -ErrorAction Ignore)) {
+        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\' -Name Server | Out-Null
+    }
+    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name Enabled -ErrorAction Ignore) {
+        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name Enabled -Value 0 -Force
+    }
+    else {
+        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name Enabled -Value 0 -PropertyType DWORD | Out-Null
+    }
+    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name DisabledByDefault -ErrorAction Ignore) {
+        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name DisabledByDefault -Value 1
+    }
+    else {
+        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name DisabledByDefault -Value 1 -PropertyType DWORD | Out-Null
+    }
+## Check for TLS 1.0 being enabled for the server as a client
+    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -ErrorAction Ignore)) {
+        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\' -Name Client | Out-Null
+    }
+    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name Enabled -ErrorAction Ignore) {
+        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name Enabled -Value 0 -Force
+    }
+    else {
+        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name Enabled -Value 0 -PropertyType DWORD | Out-Null
+    }
+    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name DisabledByDefault -ErrorAction Ignore) {
+        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name DisabledByDefault -Value 1
+    }
+    else {
+        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name DisabledByDefault -Value 1 -PropertyType DWORD | Out-Null
+    }
+#endregion
+#region Disable TLS 1.1
+    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1' -ErrorAction Ignore)) {
+        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols' -Name "TLS 1.1" | Out-Null
+    }
+    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -ErrorAction Ignore)) {
+        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\' -Name Server | Out-Null
+    }
+    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name Enabled -ErrorAction Ignore) {
+        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name Enabled -Value 0 -Force
+    }
+    else {
+        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name Enabled -Value 0 -PropertyType DWORD | Out-Null
+    }
+    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name DisabledByDefault -ErrorAction Ignore) {
+        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name DisabledByDefault -Value 1
+    }
+    else {
+        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name DisabledByDefault -Value 1 -PropertyType DWORD | Out-Null
+    }
+## Check for TLS 1.1 being enabled for the server as a client
+    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -ErrorAction Ignore)) {
+        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\' -Name Client | Out-Null
+    }
+    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name Enabled -ErrorAction Ignore) {
+        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name Enabled -Value 0 -Force
+    }
+    else {
+        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name Enabled -Value 0 -PropertyType DWORD | Out-Null
+    }
+    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name DisabledByDefault -ErrorAction Ignore) {
+        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name DisabledByDefault -Value 1
+    }
+    else {
+        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name DisabledByDefault -Value 1 -PropertyType DWORD | Out-Null
+    }
+#endregion
 }
 function Sync-ADConfigPartition {
     ## Synchronize the Configuration container in Active Directory
@@ -383,6 +480,42 @@ function Get-IPv4Subnet {
   End{}
 }
 
+function Set-PowerPlan {
+    Write-Host "Checking the current performance plan..." -ForegroundColor Green -NoNewline
+    $PowerPlan = (Get-CimInstance -Namespace root\cimv2\power -ClassName win32_PowerPlan -Filter "IsActive = 'True'").ElementName
+    Write-Host $PowerPlan
+    if($PowerPlan -ne "High performance") {
+        Write-Host "Updating the performance plan..." -ForegroundColor Green -NoNewline
+        try {
+            #$p = Get-CimInstance -Namespace root\cimv2\power -ClassName win32_PowerPlan -Filter "ElementName = 'High Performance'"
+            #Invoke-CimMethod -InputObject $p -MethodName Activate -ErrorAction Ignore | Out-Null
+            powercfg /s 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
+            Write-Host "COMPLETE"
+        }
+        catch {
+            Write-Host "FAILED" -ForegroundColor Red
+        }
+    }
+}
+function Set-KeepAliveTime {
+    if(Get-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name KeepAliveTime -ErrorAction Ignore) {
+        Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name KeepAliveTime -Value 900000
+    }
+    else {
+        New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name KeepAliveTime -Value 900000 -PropertyType DWORD | Out-Null
+    }
+}
+function Disable-SMB1 {
+    Write-Host "Checking if SMB1 is enabled..." -ForegroundColor Green -NoNewline
+    if((Get-WindowsFeature FS-SMB1).Installed) {
+        Write-Host "TRUE"
+        Write-Host "Disabling SMB1..." -ForegroundColor Green -NoNewline
+        Disable-WindowsOptionalFeature -Online -FeatureName smb1protocol -NoRestart | Out-Null
+        Set-SmbServerConfiguration -EnableSMB1Protocol $False -Confirm:$False
+        Write-Host "COMPLETE"
+    }
+}
+
 Start-Transcript -Path C:\Temp\DeployServer-Log.txt -Append -NoClobber | Out-Null
 Write-Warning "Running the Step4 script now..."
 ## Clean up the registry from the automatic login information
@@ -418,6 +551,10 @@ $adDomain = (Get-ADDomain -ErrorAction Ignore).DistinguishedName
 ## Complete either the Exchange installation of the domain controller
 switch($ExchangeInstall_LocalizedStrings.res_0099) {
     0{ ## Finalize Exchange setup
+        ## Health Checker fixes
+        Disable-SMB1
+        Set-KeepAliveTime
+        Set-PowerPlan
         Write-Host "Finalizing Exchange setup..." -ForegroundColor Green
         ## Open WinRM for future Exchange installs where the VM host is not on the same subnet
         Get-NetFirewallRule -DisplayName "Windows Remote Management (HTTP-In)" | Where {$_.Profile -eq "Public" } | Set-NetFirewallRule -RemoteAddress Any
