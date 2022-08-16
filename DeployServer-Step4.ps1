@@ -40,6 +40,33 @@ Write-Host -ForegroundColor Yellow '//'
 Write-Host -ForegroundColor Yellow '//**********************************************************************​'
 Start-Sleep -Seconds 2
 ## Functions for Exchange configuration
+function Enable-ExchangeExtendedProtection {
+    if($ExchangeInstall_LocalizedStrings.res_0003 -ne 0){
+        %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/API/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+        %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/API/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    }
+    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/ECP/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/EWS/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Allow" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/Microsoft-Server-ActiveSync/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Allow" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/OAB/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/Powershell/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/owa/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/RPC/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/MAPI/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+
+    
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/ECP/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/EWS/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/Microsoft-Server-ActiveSync/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/OAB/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/Powershell/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/owa/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/RPC/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/PushNotifications/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/RPCWithCert/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/MAPI/emsmdb/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/MAPI/napi/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+}
 function Install-ExchSU {
     switch($ExchangeInstall_LocalizedStrings.res_0003){
         0 {Install-Exch2013SU}
@@ -252,6 +279,8 @@ function Enable-TLS {
     else {
         New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
     }
+}
+function Disable-TLS {
 #region Disable TLS 1.0
     if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0' -ErrorAction Ignore)) {
         New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols' -Name "TLS 1.0" | Out-Null
@@ -559,11 +588,13 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         ## Open WinRM for future Exchange installs where the VM host is not on the same subnet
         Get-NetFirewallRule -DisplayName "Windows Remote Management (HTTP-In)" | Where {$_.Profile -eq "Public" } | Set-NetFirewallRule -RemoteAddress Any
         if($ExchangeInstall_LocalizedStrings.res_0003 -ne 2) {
-            Write-Host "Enabling TLS 1.2 on the server..." -ForegroundColor Green
+            Write-Host "Enabling TLS 1.2 on the server..." -ForegroundColor Green -NoNewline
             ## Enable TLS 1.2 on the server
             Enable-TLS
-            Write-Host "Complete"
+            Disable-TLS
+            Write-Host "COMPLETE"
         }
+        Disable-TLS
         ## Verify all Exchange services are running
         Get-Service MSExch* | Where { $_.StartType -eq "Automatic" -and $_.Status -ne "Running" } | ForEach-Object { Start-Service $_ -ErrorAction Ignore}
         ## Connect a remote PowerShell session to the server
@@ -690,6 +721,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                     2 { ## Standalone server install
                         ## Install latest Exchange security update
                         Install-ExchSU
+                        if($ExchangeInstall_LocalizedStrings.res_0015 -eq 0) {Enable-ExchangeExtendedProtection}
                         Set-Location $env:ExchangeInstallPath\Bin
                         .\Setup.exe /IAcceptExchangeServerLicenseTerms_DiagnosticDataOFF /PrepareAllDomains
                         Write-Host "Server installation complete"
@@ -701,6 +733,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                 if($DagName -eq $null) {
                     ## Install latest Exchange security update
                     Install-ExchSU
+                    if($ExchangeInstall_LocalizedStrings.res_0015 -eq 0) {Enable-ExchangeExtendedProtection}
                     Set-Location $env:ExchangeInstallPath\Bin
                     .\Setup.exe /IAcceptExchangeServerLicenseTerms_DiagnosticDataOFF /PrepareAllDomains
                     Write-Host "Server installation complete"
@@ -773,6 +806,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         }
         ## Install latest Exchange security update
         Install-ExchSU
+        if($ExchangeInstall_LocalizedStrings.res_0015 -eq 0) {Enable-ExchangeExtendedProtection}
         Set-Location $env:ExchangeInstallPath\Bin
         .\Setup.exe /IAcceptExchangeServerLicenseTerms_DiagnosticDataOFF /PrepareAllDomains
         ## Exchange server setup is complete
