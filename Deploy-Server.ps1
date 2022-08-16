@@ -621,7 +621,11 @@ function Check-ADForest {
 $vmServers = New-Object System.Collections.ArrayList
 ## Create an array to store Exchange servers and version
 $exchangeServers = New-Object System.Collections.ArrayList
-
+#Backup current hosts file
+$timeStamp = Get-Date -Format yyyyMMddHHmmss
+$hostsFile = "C:\Windows\System32\drivers\etc\hosts"
+Copy-Item $hostsFile -Destination "C:\Temp\hosts-$timeStamp" -Force -Confirm:$False
+    
 $newInstallType = Get-NewServerType
 
 if($newInstallType -eq 1) {
@@ -709,10 +713,6 @@ if($forestInstallType -eq 1 -or $newInstallType -eq 0) {
     [string]$domainController = (Resolve-DnsName $domain -Type SRV -Server $tempDNS -ErrorAction Ignore).PrimaryServer
     $Password = $credential.GetNetworkCredential().Password
 
-    #Backup current hosts file
-    $timeStamp = Get-Date -Format yyyyMMddHHmmss
-    $hostsFile = "C:\Windows\System32\drivers\etc\hosts"
-    Copy-Item $hostsFile -Destination "C:\Temp\hosts-$timeStamp" -Force -Confirm:$False
     ## Adding hosts file entries to ensure proper name resolution
     Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`r`n"
     $domainControllers = Resolve-DnsName -Name "_gc._tcp.$domain" -Type SRV -Server $tempDNS | where { $_.Name -notlike "_gc._tcp*" }
@@ -1387,19 +1387,19 @@ while($deployServer -eq $true) {
     }
 
     ## Check if Extended Protection should be enabled
-    $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
-    $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
-    $yesNoOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
-    $extendedProtectionEnabled = $Host.UI.PromptForChoice("Server deployment script","Do you want to enable Exchange Extended Protection?", $yesNoOption, 1)
-    switch ($extendedProtectionEnabled) {
-        0 {Add-Content -Path $serverVarFile -Value ('res_0059 = 0')}
-        1 {Add-Content -Path $serverVarFile -Value ('res_0059 = 1')}
+    if($newInstallType -eq 0) {
+        $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
+        $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
+        $yesNoOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+        $extendedProtectionEnabled = $Host.UI.PromptForChoice("Server deployment script","Do you want to enable Exchange Extended Protection?", $yesNoOption, 1)
+        switch ($extendedProtectionEnabled) {
+            0 {Add-Content -Path $serverVarFile -Value ('res_0059 = 0')}
+            1 {Add-Content -Path $serverVarFile -Value ('res_0059 = 1')}
+        }
     }
-    
     
     ## Finalize the psd1 file
     Add-Content -Path $serverVarFile -Value ('res_0022 = ' + $exchServer)
-    
     Add-Content -Path $serverVMFileName -Value '###PSLOC'
     Add-Content -Path $serverVMFileName -Value "'@"
 
@@ -1560,13 +1560,13 @@ foreach($v in $vmServers) {
     Write-Host "Copying files to the virtual machine..." -ForegroundColor Green -NoNewline
     $Vhd = (Mount-VHD -Path $vhdPath -PassThru | Get-Disk | Get-Partition | Get-Volume |Where {$_.DriveLetter -ne $null}).DriveLetter
     $ServerTemp = "$($Vhd):\Temp"
-    Copy-Item C:\Temp\$v* -Destination $ServerTemp -Force -Confirm:$False
+    Move-Item C:\Temp\$v* -Destination $ServerTemp -Force -Confirm:$False
     Copy-Item C:\Temp\Deploy*.ps1 -Destination $ServerTemp -Force -Confirm:$False
     Copy-Item C:\Temp\Start-Setup.ps1 -Destination $ServerTemp -Force -Confirm:$False
-    Dismount-VHD -Path $vhdParentPath
+    Dismount-VHD -Path $vhdPath
     Write-Host "COMPLETE"
     Write-Host "Starting $v..." -ForegroundColor Green
     Start-VM -Name $v
-    Remove-Item -Path $v"-VM-strings.psd1" -Force
+    #Remove-Item -Path $v"-VM-strings.psd1" -Force
     #vmconnect.exe $env:COMPUTERNAME $v
 }
