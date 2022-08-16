@@ -2,10 +2,10 @@
 //***********************************************************************
 //
 // Deploy-Server.ps1
-// Modified 14 June 2022
+// Modified 16 August 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.7
+// Version: v20220816
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -73,7 +73,7 @@ function Move-MailboxDatabase {
             return $false
         }
     }
-    Write-Host "Moving database to $healthyCopy" -ForegroundColor Green
+    Write-Host "Moving $database to $healthyCopy" -ForegroundColor Green
     $moveSuccess = (Move-ActiveMailboxDatabase $database -ActivateOnServer $healthyCopy).Status
     $moveSuccess = ($moveSuccess | Out-String).Trim()
     if($moveSuccess -eq "Succeeded") {
@@ -124,18 +124,16 @@ function Move-MailboxDatabaseBestEffort {
     }
     return $false
 }
-
 function Get-ExchangeISO {
         Write-Host "Please select the Exchange ISO" -ForegroundColor Yellow
         Start-Sleep -Seconds 2
-        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="G:\ISO"; Title="Select the Exchange ISO"}
+        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\ISO"; Title="Select the Exchange ISO"}
         $fileBrowser.Filter = "ISO (*.iso)| *.iso"
         $fileBrowser.ShowDialog()
         [string]$exoISO = $fileBrowser.FileName
         $exoISO = $exoISO.Replace("\","\\")
         Add-Content -Path $serverVMFileName -Value ('res_0001 = ' + $exoISO)
 }
-
 function Get-DAGIPAddress {
     ## There must be at least one IP address for the DAG but there may be more
     $dagIPAddresses = New-Object System.Collections.ArrayList
@@ -181,7 +179,6 @@ function AskFor-DAGIPAddress {
     $dagIP = Read-HostWithColor "Enter the Database Availability Group IP Addresses[$ipCount]: "
     return $dagIP
 }
-
 function Get-DomainControllers {
     ## Get one online domain controller for each site to confirm AD replication
     $sites = New-Object System.Collections.ArrayList
@@ -196,7 +193,6 @@ function Get-DomainControllers {
     }
     return ,$ADDomainControllers
 }
-
 function Get-VMParentDisk {
     $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
     $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
@@ -207,7 +203,7 @@ function Get-VMParentDisk {
         Write-Host "Please select the parent VHD disk" -ForegroundColor Yellow
         Start-Sleep -Seconds 2
         while($parentVHD.Length -eq 0) {
-            $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="G:\VHDs"; Title="Select the parent VHD"}
+            $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the parent VHD"}
             $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
             $fileBrowser.ShowDialog()
             [string]$parentVHD = $fileBrowser.FileName
@@ -218,13 +214,12 @@ function Get-VMParentDisk {
     }
     else {return $false}
 }
-
 function Get-VMBaseDisk {
     ## Get the base VHD
     Write-Host "Please select the base VHD image" -ForegroundColor Yellow
     Start-Sleep -Seconds 2
     while($serverVHD.Length -eq 0) {
-        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="G:\VHDs"; Title="Select the Exchange VHD"}
+        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the Exchange VHD"}
         $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
         $fileBrowser.ShowDialog()
         [string]$serverVHD = $fileBrowser.FileName
@@ -232,7 +227,6 @@ function Get-VMBaseDisk {
     $serverVHD = $serverVHD.Replace("\","\\")
     Add-Content -Path $serverVMFileName -Value ('res_0002 = ' + $serverVHD)    
 }
-
 function Get-NewVMGeneration {
     $gen1 = New-Object System.Management.Automation.Host.ChoiceDescription 'Generation &1', '1'
     $gen2 = New-Object System.Management.Automation.Host.ChoiceDescription 'Generation &2', '2'
@@ -240,7 +234,6 @@ function Get-NewVMGeneration {
     $generationResult= $Host.UI.PromptForChoice("Server deployment script","What generation virtual machine do you want to create?", $generationOption, 1)
     return $generationResult        
 }
-
 function Get-NewVMPath {
     Write-Host "Select the location for the new server VHD" -ForegroundColor Yellow
     $folderBrowser = New-Object System.Windows.Forms.FolderBrowserDialog
@@ -252,7 +245,6 @@ function Get-NewVMPath {
     $vhdPath = $vhdPath.Replace("\","\\")
     return $vhdPath
 }
-
 function Get-NewVMCPU {
     $vmCPU = 0
     while($vmCPU -eq 0) {
@@ -260,7 +252,6 @@ function Get-NewVMCPU {
     }
     return $vmCPU       
 }
-
 function Get-NewVMMemory {
     $vmMemory = 0
     while($vmMemory -eq 0) {
@@ -269,7 +260,6 @@ function Get-NewVMMemory {
     }
     return $vmMemory
 }
-
 function Get-NewVMSwitchName {
     ## Get the virtual switch selection
     $switchSelected = $false
@@ -281,7 +271,6 @@ function Get-NewVMSwitchName {
     }
     return $vmSwitch        
 }
-
 function Check-Credentials {
     Set-Item WSMan:\localhost\Client\TrustedHosts $domainController -Force
     $scriptBlock = { Get-ADDomain }
@@ -290,7 +279,6 @@ function Check-Credentials {
     }
     return $false
 }
-
 function Get-AdminCredential {
     $validUPN = $false
     while($validUPN -eq $false) {
@@ -306,7 +294,6 @@ function Get-AdminCredential {
     }
     return $adminCred
 }
-
 function Prepare-ExchangeConnect {
     $basicEnabled = $false
     while($basicEnabled -eq $false) {
@@ -333,16 +320,14 @@ function Prepare-ExchangeConnect {
     }
     return $exchServer
 }
-
 function Connect-Exchange {
     Write-Host "Connecting to Exchange remote PowerShell session..." -ForegroundColor Green
-    try { Import-PSSession (New-PSSession -Name ExchangeShell -ConfigurationName Microsoft.Exchange -ConnectionUri https://$exchServer/PowerShell -AllowRedirection -Authentication Basic -Credential $credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck) -ErrorAction Ignore) -AllowClobber -ErrorAction Ignore}
+    try { Import-PSSession (New-PSSession -Name ExchangeShell -ConfigurationName Microsoft.Exchange -ConnectionUri https://$exchServer/PowerShell -AllowRedirection -Authentication Basic -Credential $credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck) -ErrorAction Ignore) -AllowClobber -ErrorAction Ignore -WarningAction Ignore | Out-Null}
     catch { Write-Warning "Connection attempt to $exchServer failed. Retrying..."
         Start-Sleep -Seconds 5
         Connect-Exchange
     }
 }
-
 function Enable-BasicAuthentication {
     ## Add the Exchange server to the TrustedHosts list for WinRM
     Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $exchServer -Force
@@ -362,7 +347,6 @@ function Enable-BasicAuthentication {
     Remove-PSSession -Name EnableBasic | Out-Null
     return $true
 }
-
 function Read-HostWithColor() {
     ## Prompt the user for information with a string in color
     param(
@@ -373,7 +357,6 @@ function Read-HostWithColor() {
     Write-Host -ForegroundColor $ForegroundColor -NoNewline $msg;
     return Read-Host
 }
- 
 function Select-ExchangeVersion {
     ## Select the version of Exchange to be installed
     $ex15 = New-Object System.Management.Automation.Host.ChoiceDescription 'Exchange 201&3', 'Exchange version: Exchange 2013'
@@ -384,7 +367,6 @@ function Select-ExchangeVersion {
     Add-Content -Path $serverVarFile -Value ('res_0003 = ' + $exVersion)
     return $exVersion
 }
-
 function Get-MailboxDatabaseStatus {
     ## Check to see if the database is mounted on the server being restored
     param ([Parameter(Mandatory=$true)][string]$database)
@@ -393,13 +375,11 @@ function Get-MailboxDatabaseStatus {
     }
     return $false
 }
-
 function PressAnyKeyToContinue ($Message=”Unable to move a mailbox database. Please check for errors and then press any key to continue...”) {
     Write-Host -NoNewLine $Message -ForegroundColor Yellow
     $null = $Host.UI.RawUI.ReadKey(“NoEcho,IncludeKeyDown”)
     Write-Host “”
 }
-
 function Sync-AdConfigPartition {
     ## Synchronize the Configuration partition of Active Directory across all replication partners
     $repUser = "$domain\$UserName"
@@ -413,7 +393,6 @@ function Sync-AdConfigPartition {
         Invoke-Command  -ComputerName $exchServer -ScriptBlock $scriptBlock -Credential $credential -ArgumentList $fromServer, $toServer, $configPartition, $repUser, $Password | Out-Null
     }
 }
-
 function Get-ServerInfo {
     ## Prompt the user for IP configuration for the Exchange server
     $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
@@ -455,7 +434,6 @@ function Get-ServerInfo {
         }
     }
 }
-
 function Test-IP() {
     ## Validate the IP address is proper format
     param(
@@ -465,7 +443,6 @@ function Test-IP() {
     )
     return $ip
 }
-
 function Convert-RvNetIpAddressToInt64 {
 ## Convert IP address to integer
     param 
@@ -479,7 +456,6 @@ function Convert-RvNetIpAddressToInt64 {
     [int64]$ipAddressParts[2] * 256 + 
     [int64]$ipAddressParts[3]) 
 } 
- 
 function Convert-RvNetSubnetMaskClassesToCidr { 
     param ( [string] $SubnetMask ) 
     ## Convert the subnet mask into prefix length
@@ -493,7 +469,6 @@ function Convert-RvNetSubnetMaskClassesToCidr {
     } 
     return $subnetMaskCidr 
 }
-
 function Get-PrimaryDNS {
     ## Ensure the primary DNS server is provided
     $PrimaryDNS = $null
@@ -502,7 +477,6 @@ function Get-PrimaryDNS {
     }
     Add-Content -Path $serverVarFile -Value ('res_0010 = ' + $PrimaryDNS)
 }
-
 function Get-SecondaryDNS {
     ## Secondary DNS value may be empty
     $checkDNS = $null
@@ -521,20 +495,17 @@ function Get-SecondaryDNS {
     }
     Add-Content -Path $serverVarFile -Value ('res_0011 = ' + $SecondaryDNS)
 }
-
 function AskFor-SecondaryDNS() {
 ## Request secondary DNS server from user
     $secondDNS = $null
     $secondDNS = Read-HostWithColor "Enter the Secondary DNS server address: "
     return $secondDNS
 }
-
 function Validate-DagName {
     ## Verify the DAG name provided is present
     if((Get-DatabaseAvailabilityGroup $DagName -ErrorAction SilentlyContinue).Name -ne $null) { return $true }
     else { return $false }
 }
-
 function Get-CertificateFromServerCheck {
     ## Check if the Exchange certificate from server where the script is running should be used
     $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
@@ -544,7 +515,6 @@ function Get-CertificateFromServerCheck {
     if($certResult -eq 0) { return $true }
     else { return $false }
 }
-
 function Get-ServerCertificate {
     ## Determine the SSL binding information for the Default Web Site
     $scriptBlock = { Import-Module WebAdministration;
@@ -575,12 +545,10 @@ function Get-ServerCertificate {
     Remove-PSSession -Name CertificateConfig
     
     }
-
 function Check-ServerOnline {
     if(Test-Connection $ServerName -ErrorAction Ignore -Count 1) { return $true }
     else { return $false }
 }
-
 function Create-NewDAG {
     ## Get information for create a new database availability group
     $DagName = Read-HostWithColor "Enter the name for the new Database Availability Group: "
@@ -591,7 +559,6 @@ function Create-NewDAG {
     $witnessDirectory = $witnessDirectory.Replace("\","\\")
     Add-Content -Path $serverVarFile -Value ('res_0019 = ' + $witnessDirectory)
 }
-
 function Skip-DagCheck {
     ## Don't verify the existence of the DAG for multiple server deployments
     $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
@@ -604,7 +571,6 @@ function Skip-DagCheck {
     }
     return $false
 }
-
 function Check-NewDeployment {
     ## If this is a new deployment of multiple servers we may not was to validate the DAG
     $validDag = Skip-DagCheck
@@ -616,7 +582,6 @@ function Check-NewDeployment {
         Add-Content -Path $serverVarFile -Value ('res_0001 = ' + $DagName)
     }
 }
-
 function Create-ServerVariableFile {
     ## Create psd1 with variables for the VM to use for setup
     $serverVarFileName = "c:\Temp\$ServerName-ExchangeInstall-strings.psd1"
@@ -626,7 +591,6 @@ function Create-ServerVariableFile {
     Add-Content -Path $serverVarFileName -Value '###PSLOC'
     return $serverVarFileName
 }
-
 function Create-VMVariableFile {
     ## Create psd1 with variables for the VM to use for setup
     $serverVMFileName = "c:\Temp\$ServerName-VM-strings.psd1"
@@ -636,7 +600,6 @@ function Create-VMVariableFile {
     Add-Content -Path $serverVMFileName -Value '###PSLOC'
     return $serverVMFileName
 }
-
 function Get-NewServerType {
     ## Prompt for the type of new server for deployment
     $newExchange = New-Object System.Management.Automation.Host.ChoiceDescription '&Exchange Server', 'Exchange Server'
@@ -645,7 +608,6 @@ function Get-NewServerType {
     $newInstallType = $Host.UI.PromptForChoice("Server deployment script","Select the type of server to deploy:", $newInstallOption, 0)
     return $newInstallType
 }
-
 function Check-ADForest {
     ##We need to determine if this is a new forest
     $newForest = New-Object System.Management.Automation.Host.ChoiceDescription '&New', 'New'
@@ -747,8 +709,11 @@ if($forestInstallType -eq 1 -or $newInstallType -eq 0) {
     [string]$domainController = (Resolve-DnsName $domain -Type SRV -Server $tempDNS -ErrorAction Ignore).PrimaryServer
     $Password = $credential.GetNetworkCredential().Password
 
+    #Backup current hosts file
+    $timeStamp = Get-Date -Format yyyyMMddHHmmss
+    $hostsFile = "C:\Windows\System32\drivers\etc\hosts"
+    Copy-Item $hostsFile -Destination "C:\Temp\hosts-$timeStamp" -Force -Confirm:$False
     ## Adding hosts file entries to ensure proper name resolution
-    #$hostsFile = Get-Content C:\Windows\System32\drivers\etc\hosts
     Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`r`n"
     $domainControllers = Resolve-DnsName -Name "_gc._tcp.$domain" -Type SRV -Server $tempDNS | where { $_.Name -notlike "_gc._tcp*" }
     foreach($dc in $domainControllers) {
@@ -883,12 +848,7 @@ while($deployServer -eq $true) {
         }
     }
     else {
-        ## Check whether this is a new install or a recovery
         $askForCertificateLater = $false
-        #$exNew = New-Object System.Management.Automation.Host.ChoiceDescription '&New', 'New install'
-        #$exRecover = New-Object System.Management.Automation.Host.ChoiceDescription '&Recover', 'Recover server'
-        #$exInstallOption = [System.Management.Automation.Host.ChoiceDescription[]]($exNew, $exRecover)
-        #$exInstallType = $Host.UI.PromptForChoice("Server deployment script","Is this a new install of Exchange or a recovery scenario:", $exInstallOption, 0)
         Add-Content -Path $serverVarFile -Value ('res_0099 = ' + $newInstallType)
         Add-Content -Path $serverVarFile -Value ('res_0004 = ' + $exInstallType)
         Add-Content -Path $serverVMFileName -Value ('res_0003 = ' + $exInstallType)
@@ -981,7 +941,7 @@ while($deployServer -eq $true) {
                     }
                     Invoke-Command -Session $session -ScriptBlock $scriptBlock
                     $scriptFiles = "\\$ServerName\c$\Temp"
-                    New-PSDrive -Name "Script" -PSProvider FileSystem -Root $scriptFiles -Credential $credential
+                    New-PSDrive -Name "Script" -PSProvider FileSystem -Root $scriptFiles -Credential $credential | Out-Null
                     Copy-Item -Path "Script:\DiskInfo.csv" -Destination "C:\Temp\$ServerName-DiskInfo.csv" -Force -ErrorAction Ignore
                     Remove-PSDrive -Name Script
                     Write-Host "COMPLETE"
@@ -1349,17 +1309,31 @@ while($deployServer -eq $true) {
                 }
                 Write-Host "Removing server from the DAG..." -ForegroundColor Green -NoNewline
                 if($serverOnline -eq $true) {
-                    Remove-DatabaseAvailabilityGroupServer $DagName -MailboxServer $ServerName -DomainController $domainController -Confirm:$False -ErrorAction Ignore
+                    try{
+                        Remove-DatabaseAvailabilityGroupServer $DagName -MailboxServer $ServerName -DomainController $domainController -Confirm:$False -ErrorAction Ignore
+                        Write-Host "COMPLETE"
+                    }
+                    catch{
+                        Write-Host "FAILED"
+                    }
                 }
                 else {
-                    Remove-DatabaseAvailabilityGroupServer $DagName -MailboxServer $ServerName -DomainController $domainController -ConfigurationOnly -Confirm:$False -ErrorAction Ignore
-                    Start-Sleep -Seconds 5
-                    Write-Host "COMPLETE"
+                    try {
+                        Remove-DatabaseAvailabilityGroupServer $DagName -MailboxServer $ServerName -DomainController $domainController -ConfigurationOnly -Confirm:$False -ErrorAction Ignore
+                        Write-Host "COMPLETE"
+                        Start-Sleep -Seconds 5
+                    }
+                    catch { 
+                        Write-Host "FAILED"
+                    }
                     Write-Host "Removing $ServerName from the Windows cluster..." -ForegroundColor Green -NoNewline
                     $scriptBlock = { Param ($param1) Remove-ClusterNode -Name $param1 -Force -ErrorAction Ignore }
-                    Invoke-Command -ScriptBlock $scriptBlock -ComputerName $exchServer -Credential $credential -ArgumentList $ServerName
+                    try {
+                        Invoke-Command -ScriptBlock $scriptBlock -ComputerName $exchServer -Credential $credential -ArgumentList $ServerName
+                        Write-Host "COMPLETE"
+                    }
+                    catch {Write-Host "FAILED"}
                 }
-                Write-Host "COMPLETE"
 
                 ## Check if the remove succeeded
                 if((Get-DatabaseAvailabilityGroup $DagName -DomainController $domainController).Servers -notcontains $serverName) {
@@ -1407,15 +1381,21 @@ while($deployServer -eq $true) {
         if(Get-Item "C:\Temp\$ServerName-Exchange.pfx" -ErrorAction Ignore) { Remove-Item "C:\Temp\$ServerName-Exchange.pfx" -Confirm:$False -Force}
         $cert = Export-ExchangeCertificate -Server $exchServer -Thumbprint $thumb -BinaryEncoded -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force)
         Set-Content -Path "c:\Temp\$ServerName-Exchange.pfx" -Value $cert.FileData -Encoding Byte
-        #Export-ExchangeCertificate -Server $certServer -Thumbprint $thumb -FileName "C:\Temp\$ServerName-Exchange.pfx" -BinaryEncoded -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force) | Out-Null
-        #$certServerDrive = "\\$exchServer\c$\temp"
-        #New-PSDrive -Name "Script" -PSProvider FileSystem -Root $certServerDrive -Credential $credential
-        #Copy-Item -Path "Script:\$ServerName-Exchange.pfx" -Destination C:\Temp
-        #Remove-PSDrive -Name "Script"
         Write-Host "COMPLETE"
     }
     $noExchange = $false
     }
+
+    ## Check if Extended Protection should be enabled
+    $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
+    $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
+    $yesNoOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+    $extendedProtectionEnabled = $Host.UI.PromptForChoice("Server deployment script","Do you want to enable Exchange Extended Protection?", $yesNoOption, 1)
+    switch ($extendedProtectionEnabled) {
+        0 {Add-Content -Path $serverVarFile -Value ('res_0059 = 0')}
+        1 {Add-Content -Path $serverVarFile -Value ('res_0059 = 1')}
+    }
+    
     
     ## Finalize the psd1 file
     Add-Content -Path $serverVarFile -Value ('res_0022 = ' + $exchServer)
@@ -1465,7 +1445,7 @@ Write-Host "COMPLETE"
 
 ## Revert the hosts file back to the original
 Write-Host "Reverting hosts file..." -ForegroundColor Green -NoNewline
-$hostsFile | Out-File C:\Windows\System32\drivers\etc\hosts
+Copy-Item "C:\Temp\hosts-$timeStamp" -Destination  C:\Windows\System32\drivers\etc\hosts -Confirm:$False -Force
 Write-Host "COMPLETE"
 
 if($credential -ne $null) {
@@ -1537,7 +1517,6 @@ foreach($v in $vmServers) {
             Write-Host "Deleting the existing VHD file..." -ForegroundColor Green -NoNewline
             $vmHDD = (Get-VMHardDiskDrive -VMName $v)[0]
             [string]$vhdPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v)[0].Path).Path
-            #[string]$vhdParentPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v)[0].Path).ParentPath
             [string]$vhdParentPath = $VM_LocalizedStrings.res_0009
             $vmDiskCL = $vmHDD[0].ControllerLocation
             $vmDiskCN = $vmHDD[0].ControllerNumber
@@ -1577,6 +1556,14 @@ foreach($v in $vmServers) {
     else {
         Add-VMHardDiskDrive -VMName $v -Path $vhdPath -ControllerType IDE -ControllerNumber 0 -ControllerLocation 0 -ComputerName localhost -Confirm:$False
     }
+    Write-Host "COMPLETE"
+    Write-Host "Copying files to the virtual machine..." -ForegroundColor Green -NoNewline
+    $Vhd = (Mount-VHD -Path $vhdPath -PassThru | Get-Disk | Get-Partition | Get-Volume |Where {$_.DriveLetter -ne $null}).DriveLetter
+    $ServerTemp = "$($Vhd):\Temp"
+    Copy-Item C:\Temp\$v* -Destination $ServerTemp -Force -Confirm:$False
+    Copy-Item C:\Temp\Deploy*.ps1 -Destination $ServerTemp -Force -Confirm:$False
+    Copy-Item C:\Temp\Start-Setup.ps1 -Destination $ServerTemp -Force -Confirm:$False
+    Dismount-VHD -Path $vhdParentPath
     Write-Host "COMPLETE"
     Write-Host "Starting $v..." -ForegroundColor Green
     Start-VM -Name $v
