@@ -42,30 +42,30 @@ Start-Sleep -Seconds 2
 ## Functions for Exchange configuration
 function Enable-ExchangeExtendedProtection {
     if($ExchangeInstall_LocalizedStrings.res_0003 -ne 0){
-        %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/API/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-        %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/API/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+        Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/api"
+        Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/api"
     }
-    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/ECP/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/EWS/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Allow" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/Microsoft-Server-ActiveSync/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Allow" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/OAB/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/Powershell/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/owa/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/RPC/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Default Web Site/MAPI/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-
     
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/ECP/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/EWS/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/Microsoft-Server-ActiveSync/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/OAB/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/Powershell/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/owa/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/RPC/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/PushNotifications/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/RPCWithCert/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/MAPI/emsmdb/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
-    %windir%\system32\inetsrv\appcmd.exe set config "Exchange Back End/MAPI/napi/" -section:system.webServer/security/authentication/windowsAuthentication /extendedProtection.tokenChecking:"Require" /extendedProtection.flags:"None" /commit:apphost
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/ecp"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Allow -Location "Default Web Site/ews"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Allow -Location "Default Web Site/Microsoft-Server-ActiveSync"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/oab"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/Powershell"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/owa"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/rpc"  
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/mapi"
+
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/ecp"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/ews"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/Microsoft-Server-ActiveSync"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/oab"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/Powershell"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/owa"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/rpc"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/RPCWithCert"  
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/mapi/emsmdb"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/mapi/nspi"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/PushNotifications"
 }
 function Install-ExchSU {
     switch($ExchangeInstall_LocalizedStrings.res_0003){
@@ -75,13 +75,13 @@ function Install-ExchSU {
     }
 }
 function Install-Exch2013SU {
-    ## Download and install August 2022 Security Update for Exchange 2013 CU23
+## Download and install Security Update for Exchange 2013
     Write-Host "Downloading Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/d/4/bd4d3875-055b-4450-9ae7-ed34a0b051a8/Exchange2013-KB5015321-x64-en.exe" -OutFile "C:\Temp\Exchange2013-KB5015321-x64-en.exe" 
-    Write-Host "Installing August 2022 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
-    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5015321-x64-en.exe /passive"
+    Invoke-WebRequest -Uri "https://download.microsoft.com/download/3/c/1/3c152cbc-4e4e-4ddd-8ea7-e12b42644096/Exchange2013-KB5019076-x64-en.exe" -OutFile "C:\Temp\Exchange2013-KB5019076-x64-en.exe" 
+    Write-Host "Installing October 2022 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
+    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5019076-x64-en.exe /passive"
     Start-Sleep -Seconds 30
-    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5015321)"} -ErrorAction SilentlyContinue) {
+    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5019076)"} -ErrorAction SilentlyContinue) {
         Write-Host "..." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 10
     }
@@ -91,17 +91,17 @@ function Install-Exch2016SU{
 ## Download and install Security Update for Exchange 2016
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2308*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU22..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/6/8/d68be4c9-cb1b-45b2-a9a3-4a03c52b05c0/Exchange2016-KB5015322-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5015322-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/6/c/b6cec282-29c0-499a-8189-f4962d00645e/Exchange2016-KB5019077-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5019077-x64-en.exe" 
     }
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2507*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU23..." -ForegroundColor Green
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/6/4/f/64f1b3a5-6e36-4123-b9da-3bd071940b0e/Exchange2016-KB5015322-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5015322-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/4/d/5/4d59ee54-6e06-4c41-ad80-c8187d76da1c/Exchange2016-KB5019077-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5019077-x64-en.exe" 
     }
-    if(Get-Item C:\Temp\Exchange2016-KB5015322-x64-en.exe -ErrorAction Ignore) {
-        Write-Host "Installing August 2022 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
-        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5015322-x64-en.exe /passive"
+    if(Get-Item C:\Temp\Exchange2016-KB5019077-x64-en.exe -ErrorAction Ignore) {
+        Write-Host "Installing October 2022 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5019077-x64-en.exe /passive"
         Start-Sleep -Seconds 30
-        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5015322*"} -ErrorAction SilentlyContinue) {
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5019077*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
         }
@@ -109,20 +109,20 @@ function Install-Exch2016SU{
     }
 }
 function Install-Exch2019SU{
-    ## Download and install May 2022 Security Update for Exchange 2019
+## Download and install Security Update for Exchange 2019
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.0986*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU11..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/c/f/3/cf38c014-e63e-4e6a-9e06-d28d4093f763/Exchange2019-KB5015322-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5015322-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/6/7/9/6798bac4-7f4f-4546-a33b-b9918aecce64/Exchange2019-KB5019077-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5019077-x64-en.exe" 
     }
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.1118*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU12..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/8/0/4/80473b09-a81a-4816-9a79-56d5c5cc4b39/Exchange2019-KB5015322-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5015322-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/f/4/c/f4c05304-5a04-4338-9a75-7be56546ea3a/Exchange2019-KB5019077-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5019077-x64-en.exe" 
     }
-    if(Get-Item C:\Temp\Exchange2019-KB5015322-x64-en.exe -ErrorAction Ignore) {
-        Write-Host "Installing August 2022 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
-        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5015322-x64-en.exe /passive"
+    if(Get-Item C:\Temp\Exchange2019-KB5019077-x64-en.exe -ErrorAction Ignore) {
+        Write-Host "Installing October 2022 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5019077-x64-en.exe /passive"
         Start-Sleep -Seconds 30
-        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5015322*"} -ErrorAction SilentlyContinue) {
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5019077*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
         }
@@ -177,6 +177,30 @@ function Prepare-DatabaseAvailabilityGroup {
     $acl.AddAccessRule($ace)
     Set-acl -aclobject $acl "ad:$adComputer"
 }
+function CheckAndAddRegistryPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)] [string]$RegistryPath
+    )
+    if(!(Get-Item -Path $RegistryPath -ErrorAction Ignore)) {
+        $RegistryPath = $RegistryPath.Replace("HKLM:","HKEY_LOCAL_MACHINE")
+        reg add $RegistryPath | Out-Null
+    }
+}
+function CheckAndAddRegistryKey {
+    param(
+        [Parameter(Mandatory = $true)] [string]$RegistryPath,
+        [Parameter(Mandatory = $true)] [string]$Name,
+        [Parameter(Mandatory = $true)] $Value,
+        [Parameter(Mandatory = $true)] [string]$PropertyType
+    )
+    if(Get-ItemProperty -Path $RegistryPath -Name $Name -ErrorAction Ignore) {
+        Set-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -Force
+    }
+    else {
+        New-ItemProperty -Path $RegistryPath -Name $Name -Value $Value -PropertyType $PropertyType | Out-Null
+    }
+}
 function Check-FileShareWitness {
     ## Checking to see if the file share witness is a domain controller and
     ## Adding the Exchange Trusted Subsytem to the Administrators group to preven quorum failures
@@ -189,170 +213,6 @@ function Check-FileShareWitness {
             Write-Host "File share witness is a domain controller. Setup will add the Exchange Trusted Subsystem to the Administrators group." -ForegroundColor Yellow -BackgroundColor Black
             Add-ADGroupMember -Identity Administrators -Members "Exchange Trusted Subsystem" -Confirm:$False    
     }
-}
-function Enable-TLS {
-## Check for and enable TLS 1.2 on the server
-    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2' -ErrorAction Ignore)) {
-        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols' -Name "TLS 1.2" | Out-Null
-    }
-    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server' -ErrorAction Ignore)) {
-        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\' -Name Server | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server' -Name Enabled -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server' -Name Enabled -Value 1 -Force
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server' -Name Enabled -Value 1 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server' -Name DisabledByDefault -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server' -Name DisabledByDefault -Value 0
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server' -Name DisabledByDefault -Value 0 -PropertyType DWORD | Out-Null
-    }
-## Check for TLS 1.2 being enabled for the server as a client
-    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client' -ErrorAction Ignore)) {
-        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\' -Name Client | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client' -Name Enabled -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client' -Name Enabled -Value 1 -Force
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client' -Name Enabled -Value 1 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client' -Name DisabledByDefault -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client' -Name DisabledByDefault -Value 0
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client' -Name DisabledByDefault -Value 0 -PropertyType DWORD | Out-Null
-    }
-
-## Check for and enable TLS 1.2 for .NET framework 3.5
-    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SystemDefaultTlsVersions -ErrorAction Ignore) {
-        Set-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SystemDefaultTlsVersions -Value 1
-    }
-    else {
-        New-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SystemDefaultTlsVersions -Value 1 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -ErrorAction Ignore) {
-        Set-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -Value 1
-    }
-    else {
-        New-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
-    }
-
-    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SystemDefaultTlsVersions -ErrorAction Ignore) {
-        Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SystemDefaultTlsVersions -Value 1
-    }
-    else {
-        New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SystemDefaultTlsVersions -Value 1 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -ErrorAction Ignore) {
-        Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -Value 1
-    }
-    else {
-        New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
-    }
-
-## Check for and enable TLS 1.2 for .NET framework 4.0
-    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -ErrorAction Ignore) {
-        Set-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -Value 1
-    }
-    else {
-        New-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -Value 1 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -ErrorAction Ignore) {
-        Set-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -Value 1
-    }
-    else {
-        New-ItemProperty -Path HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -ErrorAction Ignore) {
-        Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -Value 1
-    }
-    else {
-        New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SystemDefaultTlsVersions -Value 1 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -ErrorAction Ignore) {
-        Set-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -Value 1
-    }
-    else {
-        New-ItemProperty -Path HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319 -Name SchUseStrongCrypto -Value 1 -PropertyType DWORD | Out-Null
-    }
-}
-function Disable-TLS {
-#region Disable TLS 1.0
-    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0' -ErrorAction Ignore)) {
-        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols' -Name "TLS 1.0" | Out-Null
-    }
-    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -ErrorAction Ignore)) {
-        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\' -Name Server | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name Enabled -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name Enabled -Value 0 -Force
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name Enabled -Value 0 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name DisabledByDefault -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name DisabledByDefault -Value 1
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server' -Name DisabledByDefault -Value 1 -PropertyType DWORD | Out-Null
-    }
-## Check for TLS 1.0 being enabled for the server as a client
-    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -ErrorAction Ignore)) {
-        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\' -Name Client | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name Enabled -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name Enabled -Value 0 -Force
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name Enabled -Value 0 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name DisabledByDefault -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name DisabledByDefault -Value 1
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client' -Name DisabledByDefault -Value 1 -PropertyType DWORD | Out-Null
-    }
-#endregion
-#region Disable TLS 1.1
-    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1' -ErrorAction Ignore)) {
-        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols' -Name "TLS 1.1" | Out-Null
-    }
-    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -ErrorAction Ignore)) {
-        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\' -Name Server | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name Enabled -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name Enabled -Value 0 -Force
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name Enabled -Value 0 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name DisabledByDefault -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name DisabledByDefault -Value 1
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server' -Name DisabledByDefault -Value 1 -PropertyType DWORD | Out-Null
-    }
-## Check for TLS 1.1 being enabled for the server as a client
-    if(!(Get-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -ErrorAction Ignore)) {
-        New-Item -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\' -Name Client | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name Enabled -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name Enabled -Value 0 -Force
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name Enabled -Value 0 -PropertyType DWORD | Out-Null
-    }
-    if(Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name DisabledByDefault -ErrorAction Ignore) {
-        Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name DisabledByDefault -Value 1
-    }
-    else {
-        New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client' -Name DisabledByDefault -Value 1 -PropertyType DWORD | Out-Null
-    }
-#endregion
 }
 function Sync-ADConfigPartition {
     ## Synchronize the Configuration container in Active Directory
@@ -516,22 +376,12 @@ function Set-PowerPlan {
     if($PowerPlan -ne "High performance") {
         Write-Host "Updating the performance plan..." -ForegroundColor Green -NoNewline
         try {
-            #$p = Get-CimInstance -Namespace root\cimv2\power -ClassName win32_PowerPlan -Filter "ElementName = 'High Performance'"
-            #Invoke-CimMethod -InputObject $p -MethodName Activate -ErrorAction Ignore | Out-Null
             powercfg /s 8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c
             Write-Host "COMPLETE"
         }
         catch {
             Write-Host "FAILED" -ForegroundColor Red
         }
-    }
-}
-function Set-KeepAliveTime {
-    if(Get-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name KeepAliveTime -ErrorAction Ignore) {
-        Set-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name KeepAliveTime -Value 900000
-    }
-    else {
-        New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters -Name KeepAliveTime -Value 900000 -PropertyType DWORD | Out-Null
     }
 }
 function Disable-SMB1 {
@@ -582,19 +432,155 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
     0{ ## Finalize Exchange setup
         ## Health Checker fixes
         Disable-SMB1
-        Set-KeepAliveTime
+        CheckAndAddRegistryKey -RegistryPath 'HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters' -Name 'KeepAliveTime' -Value 900000 -PropertyType 'DWORD'
         Set-PowerPlan
         Write-Host "Finalizing Exchange setup..." -ForegroundColor Green
         ## Open WinRM for future Exchange installs where the VM host is not on the same subnet
         Get-NetFirewallRule -DisplayName "Windows Remote Management (HTTP-In)" | Where {$_.Profile -eq "Public" } | Set-NetFirewallRule -RemoteAddress Any
         if($ExchangeInstall_LocalizedStrings.res_0003 -ne 2) {
-            Write-Host "Enabling TLS 1.2 on the server..." -ForegroundColor Green -NoNewline
-            ## Enable TLS 1.2 on the server
-            Enable-TLS
-            Disable-TLS
+            #region Enable TLS 1.2
+            Write-Host "Enabling TLS 1.2..." -ForegroundColor Green -NoNewline
+            $RegistryPaths = @('HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2',
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Client'
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2\Server')
+            foreach($RegistryPath in $RegistryPaths) {
+                CheckAndAddRegistryPath -RegistryPath $RegistryPath
+                if($RegistryPath -like '*Client' -or $RegistryPath -like '*Server') {
+                    CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'DisabledByDefault' -Value 0 -PropertyType 'DWORD'
+                    CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name "Enabled" -Value 1 -PropertyType 'DWORD'
+                }
+            }
             Write-Host "COMPLETE"
+            #endregion
+            #region Enable TLS 1.2 for .NET 4.x and 3.5
+            Write-Host "Enabling TLS 1.2 for .NET Framework..." -ForegroundColor Green -NoNewline
+            $RegistryPaths = @('HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319',
+                'HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319',
+                'HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727',
+                'HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727')
+            foreach($RegistryPath in $RegistryPaths) {
+                CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'SystemDefaultTlsVersions' -Value 1 -PropertyType 'DWORD'
+                CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'SchUseStrongCrypto' -Value 1 -PropertyType 'DWORD'
+            }    
+            Write-Host "COMPLETE"                   
+            #endregion
+            #region TLS negotiation strict mode
+            Write-Host "Enabling TLS negatiation in strict mode..." -ForegroundColor Green -NoNewline
+            CheckAndAddRegistryKey -RegistryPath "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "AllowInsecureRenegoClients" -Value 0 -PropertyType 'DWORD'
+            CheckAndAddRegistryKey -RegistryPath "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name 'AllowInsecureRenegoServers' -Value 0 -PropertyType 'DWORD'
+            Write-Host "COMPLETE"
+            #endregion
+            #region Configure ciphers
+            Write-Host "Configuring ciphers..." -ForegroundColor Green -NoNewline
+            $Ciphers = @('HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\DES 56/56',
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\NULL',
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 40/128',
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 56/128',
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 56/56',
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 40/128',
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 56/128',
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 64/128',
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128',
+                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\Triple DES 168')
+            foreach($Cipher in $Ciphers) {
+                CheckAndAddRegistryPath -RegistryPath $Cipher
+                CheckAndAddRegistryKey -RegistryPath $Cipher -Name 'Enabled' -Value 0 -PropertyType 'DWORD'
+            }
+            Write-Host "COMPLETE"
+            #endregion
+            #region Configure hashes
+            Write-Host "Configuring hashes..." -ForegroundColor Green -NoNewline
+            $Hashes = @('HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\MD5')
+            foreach($Hash in $Hashes) {
+                CheckAndAddRegistryPath -RegistryPath $Cipher
+                CheckAndAddRegistryKey -RegistryPath $Cipher -Name 'Enabled' -Value 0 -PropertyType 'DWORD'
+            }
+            Write-Host "COMPLETE"
+            #endregion
+            #region Windows 2016 Cipher suites
+            if(([environment]::OSVersion.Version).Major -eq 10 -and ([environment]::OSVersion.Version).Minor -eq 0) {
+                Write-Host "Configuring cipher suites on Windows Server 2016..." -ForegroundColor Green -NoNewline
+                $cipherSuiteKeyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Cryptography\Configuration\SSL\00010002"  
+                if (((Get-ItemProperty $cipherSuiteKeyPath).Functions).Count -ge 1) {
+	                Write-Host "Cipher suites are configured by Group Policy" -Foregroundcolor Red
+                } 
+                else {
+                    Write-Host "No cipher suites are configured by Group Policy - you can continue with the next steps" -Foregroundcolor Green    
+                    foreach ($suite in (Get-TLSCipherSuite).Name) {
+                        if (-not([string]::IsNullOrWhiteSpace($suite))) {
+                            Disable-TlsCipherSuite -Name $suite -ErrorAction SilentlyContinue
+                        }
+                    }
+                    $CipherSuites = @('TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384',
+                        'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256',
+                        'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384',
+                        'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256',
+                        'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384',
+                        'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256',
+                        'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384',
+                        'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256')
+                    $suiteCount = 0
+                    foreach ($suite in $cipherSuites) {
+                        Enable-TlsCipherSuite -Name $suite -Position $suiteCount
+                        $suiteCount++
+                    }
+                }
+                Write-Host "COMPLETE"
+                Write-Host "Configuring cipher curves..." -ForegroundColor Green -NoNewline
+                Disable-TlsEccCurve -Name "curve25519"
+                Enable-TlsEccCurve -Name "NistP384" -Position 0
+                Enable-TlsEccCurve -Name "NistP256" -Position 1
+                Write-Host "COMPLETE"
+            }
+            #endregion
+            #region Windows 2012 R2 Cipher suites
+            if(([environment]::OSVersion.Version).Major -eq 6 -and ([environment]::OSVersion.Version).Minor -eq 2) {
+                Write-Host "Configuring cipher suites on Windows Server 2012 R2..." -ForegroundColor Green -NoNewline
+                $RegistryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Cryptography\Configuration\Local\SSL\00010002"
+                $CipherSuites = @('TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384_P384',
+                    'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384_P256',
+                    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P384',
+                    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384_P384',
+                    'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384_P256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256_P384',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256_P256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384_P384',
+                    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384_P256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256_P384',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256_P256',
+                    'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA_P384',
+                    'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA_P256',
+                    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA_P384',
+                    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA_P256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA_P384',
+                    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA_P256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA_P384',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA_P256',
+                    'TLS_RSA_WITH_AES_256_GCM_SHA384',
+                    'TLS_RSA_WITH_AES_128_GCM_SHA256')
+                CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'Functions' -Value $CipherSuites -PropertyType 'STRING'
+                Write-Host "COMPLETE"
+            }
+            #endregion
         }
-        Disable-TLS
+        #region Disable TLS 1.0 and 1.1
+        Write-Host "Disabling TLS 1.0 and 1.1..." -ForegroundColor Green -NoNewline
+        $RegistryPaths = @('HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Client',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0\Server',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Client',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.1\Server')
+        foreach($RegistryPath in $RegistryPaths) {
+            CheckAndAddRegistryPath -RegistryPath $RegistryPath
+            if($RegistryPath -like '*Client' -or $RegistryPath -like '*Server') {
+                CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'DisabledByDefault' -Value 1 -PropertyType 'DWORD'
+                CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name "Enabled" -Value 0 -PropertyType 'DWORD'
+            }
+        }
+        Write-Host "COMPLETE"
+        #endregion
         ## Verify all Exchange services are running
         Get-Service MSExch* | Where { $_.StartType -eq "Automatic" -and $_.Status -ne "Running" } | ForEach-Object { Start-Service $_ -ErrorAction Ignore}
         ## Connect a remote PowerShell session to the server
