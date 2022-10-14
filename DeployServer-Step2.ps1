@@ -207,16 +207,9 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             Write-Host "COMPLETE"
             Write-Host "Installing URL Rewrite..." -ForegroundColor Green -NoNewline
             C:\Temp\rewrite_amd64_en-US.msi /passive /norestart /log C:\Temp\rewrite.log
-            [boolean]$InstallComplete = $false
-            [int]$InstallCheck = 0
-            while($InstallComplete -eq $false) {
-                Start-Sleep -Seconds 30
-                if((Get-Content C:\Temp\rewrite.log) -match " completed successfully" -or $InstallCheck -eq 5) {
-                    $InstallComplete = $true
-                }
-                else {
-                    $InstallCheck++
-                }
+            while(Get-Process msiexec -ErrorAction SilentlyContinue | where {$_.MainWindowTitle -like "*rewrite*"} ) {
+                Write-Host "..." -ForegroundColor Green -NoNewline
+                Start-Sleep -Seconds 2
             }
             Write-Host "COMPLETE"
         }
