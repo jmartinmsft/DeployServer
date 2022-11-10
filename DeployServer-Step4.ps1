@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step4.ps1
-// Modified 14 June 2022
+// Modified 10 November 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.3.2
+// Version: v20221110.0824
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -25,6 +25,7 @@
 //
 //**********************************************************************​
 #>
+#region Disclaimer
 Write-Host -ForegroundColor Yellow '//***********************************************************************'
 Write-Host -ForegroundColor Yellow '//'
 Write-Host -ForegroundColor Yellow '// Copyright (c) 2018 Microsoft Corporation. All rights reserved.'
@@ -39,6 +40,7 @@ Write-Host -ForegroundColor Yellow '// THE SOFTWARE.'
 Write-Host -ForegroundColor Yellow '//'
 Write-Host -ForegroundColor Yellow '//**********************************************************************​'
 Start-Sleep -Seconds 2
+#endregion
 ## Functions for Exchange configuration
 function Enable-ExchangeExtendedProtection {
     if($ExchangeInstall_LocalizedStrings.res_0003 -ne 0){
@@ -77,11 +79,11 @@ function Install-ExchSU {
 function Install-Exch2013SU {
 ## Download and install Security Update for Exchange 2013
     Write-Host "Downloading Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Invoke-WebRequest -Uri "https://download.microsoft.com/download/3/c/1/3c152cbc-4e4e-4ddd-8ea7-e12b42644096/Exchange2013-KB5019076-x64-en.exe" -OutFile "C:\Temp\Exchange2013-KB5019076-x64-en.exe" 
-    Write-Host "Installing October 2022 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
-    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5019076-x64-en.exe /passive"
+    Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/3/3/b33cf488-9f00-411f-8f08-beef7d219e81/Exchange2013-KB5019758-x64-en.exe" -OutFile "C:\Temp\Exchange2013-KB5019758-x64-en.exe" 
+    Write-Host "Installing November 2022 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
+    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5019758-x64-en.exe /passive"
     Start-Sleep -Seconds 30
-    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5019076)"} -ErrorAction SilentlyContinue) {
+    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5019758)"} -ErrorAction SilentlyContinue) {
         Write-Host "..." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 10
     }
@@ -91,17 +93,17 @@ function Install-Exch2016SU{
 ## Download and install Security Update for Exchange 2016
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2308*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU22..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/6/c/b6cec282-29c0-499a-8189-f4962d00645e/Exchange2016-KB5019077-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5019077-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/4/9/d4993639-8642-4461-a109-79d9ab46bc68/Exchange2016-KB5019758-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5019758-x64-en.exe" 
     }
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2507*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU23..." -ForegroundColor Green
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/4/d/5/4d59ee54-6e06-4c41-ad80-c8187d76da1c/Exchange2016-KB5019077-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5019077-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/e/9/a/e9a07b3b-b440-44bb-8484-7ece339ffaf1/Exchange2016-KB5019758-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5019758-x64-en.exe" 
     }
-    if(Get-Item C:\Temp\Exchange2016-KB5019077-x64-en.exe -ErrorAction Ignore) {
-        Write-Host "Installing October 2022 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
-        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5019077-x64-en.exe /passive"
+    if(Get-Item C:\Temp\Exchange2016-KB5019758-x64-en.exe -ErrorAction Ignore) {
+        Write-Host "Installing November 2022 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5019758-x64-en.exe /passive"
         Start-Sleep -Seconds 30
-        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5019077*"} -ErrorAction SilentlyContinue) {
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5019758*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
         }
@@ -112,17 +114,17 @@ function Install-Exch2019SU{
 ## Download and install Security Update for Exchange 2019
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.0986*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU11..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/6/7/9/6798bac4-7f4f-4546-a33b-b9918aecce64/Exchange2019-KB5019077-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5019077-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/3/5/a/35a6ba9d-d36b-482c-8ca1-81ef2a6f05a3/Exchange2019-KB5019758-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5019758-x64-en.exe" 
     }
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.1118*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU12..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/f/4/c/f4c05304-5a04-4338-9a75-7be56546ea3a/Exchange2019-KB5019077-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5019077-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/b/9/db9ee80e-9c18-40d8-91f9-f2353dcf4f86/Exchange2019-KB5019758-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5019758-x64-en.exe" 
     }
-    if(Get-Item C:\Temp\Exchange2019-KB5019077-x64-en.exe -ErrorAction Ignore) {
-        Write-Host "Installing October 2022 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
-        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5019077-x64-en.exe /passive"
+    if(Get-Item C:\Temp\Exchange2019-KB5019758-x64-en.exe -ErrorAction Ignore) {
+        Write-Host "Installing November 2022 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5019758-x64-en.exe /passive"
         Start-Sleep -Seconds 30
-        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5019077*"} -ErrorAction SilentlyContinue) {
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5019758*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
         }
@@ -607,6 +609,11 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         Set-Service MSExchangeDiagnostics -StartupType Disabled
         Set-Service MSExchangeHM -StartupType Disabled
         Write-Host "COMPLETE"
+        #Set the minimum number of log files to retain. Don't want 10,000 on active or 100,000 on passive
+        $RegistryPath = "HKLM:\Software\Microsoft\ExchangeServer\v15\BackupInformation"
+        CheckAndAddRegistryPath -RegistryPath $RegistryPath
+        CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'LooseTruncation_MinCopiesToProtect' -Value 1 -PropertyType 'DWORD'
+        CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'LooseTruncation_MinLogsToProtect' -Value 100 -PropertyType 'DWORD'
         ## Finish Exchange configuration
         $DagName = $ExchangeInstall_LocalizedStrings.res_0001
         ## Updating the Exchange certificate
