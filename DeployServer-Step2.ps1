@@ -1,9 +1,9 @@
 ﻿<#
-// DeployServer-Step1.ps1
-// Modified 2021/10/01
+// DeployServer-Step2.ps1
+// Modified 10 November 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.2
+// Version: v20221110.1433
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -113,27 +113,27 @@ $RunOnceKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
 $WinLogonKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
 Set-ItemProperty -Path $WinLogonKey -Name "AutoAdminLogon" -Value "1"
 Set-ItemProperty -Path $WinLogonKey -Name "AutoLogonCount" -Value "5" 
-Set-ItemProperty -Path $WinLogonKey -Name "DefaultUserName" -Value $ExchangeInstall_LocalizedStrings.res_0013
+Set-ItemProperty -Path $WinLogonKey -Name "DefaultUserName" -Value $ExchangeInstall_LocalizedStrings.Username
 ## New forest deployments have the administrator password set to the workstation
-if($ExchangeInstall_LocalizedStrings.res_0012.Length -eq 0) {
+if($ExchangeInstall_LocalizedStrings.DomainPassword.Length -eq 0) {
     Set-ItemProperty -Path $WinLogonKey -Name "DefaultPassword" -Value $UserCreds_LocalizedStrings.res_0001
 }
 else {
-    Set-ItemProperty -Path $WinLogonKey -Name "DefaultPassword" -Value $ExchangeInstall_LocalizedStrings.res_0012
+    Set-ItemProperty -Path $WinLogonKey -Name "DefaultPassword" -Value $ExchangeInstall_LocalizedStrings.DomainPassword
 }
-Set-ItemProperty -Path $WinLogonKey -Name "DefaultDomainName" -Value $ExchangeInstall_LocalizedStrings.res_0014
+Set-ItemProperty -Path $WinLogonKey -Name "DefaultDomainName" -Value $ExchangeInstall_LocalizedStrings.Domain
 Write-Host "COMPLETE"
 ## Prepare the server to be either an Exchange server or domain controller
-switch($ExchangeInstall_LocalizedStrings.res_0099) {
+switch($ExchangeInstall_LocalizedStrings.ServerType) {
     0 { ## Complete steps required for Exchange server deployment
         ## Prepare Windows to automatically login after reboot and run the next step
         Set-ItemProperty -Path $RunOnceKey -Name "ExchangeSetup" -Value ('C:\Windows\System32\WindowsPowerShell\v1.0\Powershell.exe -executionPolicy Unrestricted -File C:\Temp\DeployServer-Step3.ps1 -ServerName ' + $ServerName)
         ## Check and install Microsoft .NET Framework based on Exchange version
         Write-Host "Checking the version of Microsoft .NET Framework..." -ForegroundColor Green -NoNewline
-        switch ($ExchangeInstall_LocalizedStrings.res_0003) {
+        switch ($ExchangeInstall_LocalizedStrings.ExchangeVersion) {
             2 { Install-Net4Dot8 }
             1 { Install-Net4Dot8 }
-            0 { switch ($ExchangeInstall_LocalizedStrings.res_0016) {
+            0 { switch ($ExchangeInstall_LocalizedStrings.DotNetResult) {
                 0 { Install-Net4Dot8 }
                 1 { Install-Net4Dot7Two }
                 }
@@ -207,6 +207,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             Write-Host "COMPLETE"
             Write-Host "Installing URL Rewrite..." -ForegroundColor Green -NoNewline
             C:\Temp\rewrite_amd64_en-US.msi /passive /norestart /log C:\Temp\rewrite.log
+            Start-Sleep -Seconds 2
             while(Get-Process msiexec -ErrorAction SilentlyContinue | where {$_.MainWindowTitle -like "*rewrite*"} ) {
                 Write-Host "..." -ForegroundColor Green -NoNewline
                 Start-Sleep -Seconds 2
@@ -237,26 +238,26 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         }
 }
     1 { ## Make this server a domain controller
-        switch($ExchangeInstall_LocalizedStrings.res_0100) {
+        switch($ExchangeInstall_LocalizedStrings.NewAdForest) {
             0 { ## Create the new Active Directory forest
-                [securestring]$adSafeModePwd = $ExchangeInstall_LocalizedStrings.res_0105 | ConvertTo-SecureString -AsPlainText -Force
+                [securestring]$adSafeModePwd = $ExchangeInstall_LocalizedStrings.AdSafeModePassword | ConvertTo-SecureString -AsPlainText -Force
                 ## Prepare server for next step after reboot
                 Set-ItemProperty -Path $RunOnceKey -Name "ExchangeSetup" -Value ('C:\Windows\System32\WindowsPowerShell\v1.0\Powershell.exe -executionPolicy Unrestricted -File C:\Temp\DeployServer-Step4.ps1 -ServerName ' + $ServerName)
                 ## Determine the forest mode
-                switch($ExchangeInstall_LocalizedStrings.res_0102) {
+                switch($ExchangeInstall_LocalizedStrings.DomainMode) {
                     0 { $domainMode = "Win2012R2"}
                     1 { $domainMode = "WinThreshold" }
                     2 { $domainMode = "WinThreshold" }
                 }
                 ## Determine the domain mode
-                switch($ExchangeInstall_LocalizedStrings.res_0103) {
+                switch($ExchangeInstall_LocalizedStrings.ForestMode) {
                     0 { $forestMode = "Win2012R2"}
                     1 { $forestMode = "WinThreshold" }
                     2 { $forestMode = "WinThreshold" }
                 }
                 ## Create the new Active Directory forest
                 Write-Host "Creating the new Active Directory forest $domain..." -ForegroundColor Yellow
-                Install-ADDSForest -DomainName $ExchangeInstall_LocalizedStrings.res_0101 -DomainMode $domainMode -ForestMode $forestMode -DomainNetbiosName $ExchangeInstall_LocalizedStrings.res_0104 -SafeModeAdministratorPassword $adSafeModePwd -InstallDns -Confirm:$false
+                Install-ADDSForest -DomainName $ExchangeInstall_LocalizedStrings.AdDomain -DomainMode $domainMode -ForestMode $forestMode -DomainNetbiosName $ExchangeInstall_LocalizedStrings.DomainNetBiosName -SafeModeAdministratorPassword $adSafeModePwd -InstallDns -Confirm:$false
             }
             1 { ## Add an additional domain controller to the forest
                 ## Prepare Windows to automatically login after reboot and run the next step
@@ -265,59 +266,25 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         }
     }
 }
-if($ExchangeInstall_LocalizedStrings.res_0100 -ne 0) {
+if($ExchangeInstall_LocalizedStrings.NewAdForest -ne 0) {
     ## Join the server to the domain
     ## Credentials are dependent on whether provided during deployment or not
-    if($ExchangeInstall_LocalizedStrings.res_0012.Length -ne 0) {
-        [securestring]$securePwd = $ExchangeInstall_LocalizedStrings.res_0012 | ConvertTo-SecureString -AsPlainText -Force
+    if($ExchangeInstall_LocalizedStrings.DomainPassword.Length -ne 0) {
+        [securestring]$securePwd = $ExchangeInstall_LocalizedStrings.DomainPassword | ConvertTo-SecureString -AsPlainText -Force
     }
     else {
         [securestring]$securePwd = $UserCreds_LocalizedStrings.res_0001 | ConvertTo-SecureString -AsPlainText -Force
     }
     ## Get the domain name to join
-    $domain = $ExchangeInstall_LocalizedStrings.res_0014
-    $UserName = $ExchangeInstall_LocalizedStrings.res_0013+"@"+$domain
+    $domain = $ExchangeInstall_LocalizedStrings.Domain
+    $UserName = $ExchangeInstall_LocalizedStrings.Username+"@"+$domain
     [PSCredential]$credential = New-Object System.Management.Automation.PSCredential -ArgumentList $UserName,$securePwd
     ## Join the server to the domain
-    Write-Host "Joining"$ExchangeInstall_LocalizedStrings.res_0000"to the"$ExchangeInstall_LocalizedStrings.res_0014"domain..." -ForegroundColor Yellow
+    Write-Host "Joining"$ExchangeInstall_LocalizedStrings.ServerName"to the"$ExchangeInstall_LocalizedStrings.Domain"domain..." -ForegroundColor Yellow
     ## Continuous loop for new deployment where server may be online before AD forest is deployed
     while(1){
-        Add-Computer -ComputerName $env:COMPUTERNAME -Credential $credential -DomainName $ExchangeInstall_LocalizedStrings.res_0014 -Restart -ErrorAction Ignore
+        Add-Computer -ComputerName $env:COMPUTERNAME -Credential $credential -DomainName $ExchangeInstall_LocalizedStrings.Domain -Restart -ErrorAction Ignore
         Write-Host "." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 5
     }
 }
-
-# SIG # Begin signature block
-# MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
-# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDQF9gSEFuVfwO7
-# TIT8W6F9uPhqktyqGaQp1drxp92PCKCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
-# u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
-# cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
-# BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
-# ggEPADCCAQoCggEBAMSWhFMKzV8qMywbj1H6lg4h+cvR9CtxmQ1J3V9uf9+R2d9p
-# laoDqCNS+q8wz+t+QffvmN2YbcsHrXp6O7bF+xYjuPtIurv8wM69RB/Uy1xvsUKD
-# L/ZDQZ0zewMDLb5Nma7IYJCPYelHiSeO0jsyLXTnaOG0Rq633SUkuPv+C3N8GzVs
-# KDnxozmHGYq/fdQEv9Bpci2DkRTtnHvuIreeqsg4lICeTIny8jMY4yC6caQkamzp
-# GcJWWO0YZlTQOaTgHoVVnSZAvdJhzxIX2wqd0/VaVIbpN0HcPKtMrgXv0O2Bl4Lo
-# tmZR7za7H6hamxaPYQHHyReFs2xM7hlVVWhnfpECAwEAAaNoMGYwDgYDVR0PAQH/
-# BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMDMCAGA1UdEQQZMBeCFWptYXJ0aW5A
-# bWljcm9zb2Z0LmNvbTAdBgNVHQ4EFgQUCB04A8myETdoRJU9zsScvFiRGYkwDQYJ
-# KoZIhvcNAQELBQADggEBAEjsxpuXMBD72jWyft6pTxnOiTtzYykYjLTsh5cRQffc
-# z0sz2y+jL2WxUuiwyqvzIEUjTd/BnCicqFC5WGT3UabGbGBEU5l8vDuXiNrnDf8j
-# zZ3YXF0GLZkqYIZ7lUk7MulNbXFHxDwMFD0E7qNI+IfU4uaBllsQueUV2NPx4uHZ
-# cqtX4ljWuC2+BNh09F4RqtYnocDwJn3W2gdQEAv1OQ3L6cG6N1MWMyHGq0SHQCLq
-# QzAn5DpXfzCBAePRcquoAooSJBfZx1E6JeV26yw2sSnzGUz6UMRWERGPeECSTz3r
-# 8bn3HwYoYcuV+3I7LzEiXOdg3dvXaMf69d13UhMMV1sxggHdMIIB2QIBATA0MCAx
-# HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
-# NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
-# AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
-# CSqGSIb3DQEJBDEiBCCryHIHsABLejgJSb8xP1uqJOuN+x5B84r8TgyRGBiEKTAN
-# BgkqhkiG9w0BAQEFAASCAQBF6ueFknvIR4pWHpFiJJI59SarKVT4sg01d7WxF7Df
-# 07IX8/diQ8u2uwaKqBOXKV83Six9m8rxMBVZ9e4J1/XtKqWs+hrTRhFYEH/6Mo1T
-# PnC64va3bVUQ0JoRe8oMKlLtAM7K2BB6vlcme3v3rXTU+1Ij2SRg9KZXE/rWsVhS
-# Ek7EVY5GwRYpOAB8OaF3f7sfGWPKgvUQ+kGSpgILtcoDsYB+TQJp9lamN46wIREj
-# ZBZOhJhUbbrRkwdnky71cj4WWE+trwUhbsEYTB95IISJ/QDFUBTJddRcrfAasioo
-# X31xyWpI/mAO/Nb+Jz+ynw03dW74Vkkw/bYRbA2zpUO4
-# SIG # End signature block

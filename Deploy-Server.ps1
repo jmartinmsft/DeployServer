@@ -2,10 +2,10 @@
 //***********************************************************************
 //
 // Deploy-Server.ps1
-// Modified 16 August 2022
+// Modified 15 November 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20220816
+// Version: v20221115.0934
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -39,8 +39,8 @@ Write-Host -ForegroundColor Yellow '// OUT OF OR IN CONNECTION WITH THE SOFTWARE
 Write-Host -ForegroundColor Yellow '// THE SOFTWARE.'
 Write-Host -ForegroundColor Yellow '//'
 Write-Host -ForegroundColor Yellow '//**********************************************************************​'
-Start-Sleep -Seconds 2
 function Check-ExchangeVersion {
+    if($newOrgResult -ne 0) {
     $latestVersion = 0
     Get-ExchangeServer | ForEach-Object {
         [int]$serverVersion = $_.AdminDisplayVersion.Substring(11,1)
@@ -48,6 +48,8 @@ function Check-ExchangeVersion {
             $latestVersion = $serverVersion
         }
     }
+    }
+    else { $latestVersion = 0 }
     return $latestVersion
 }
 function Move-MailboxDatabase {
@@ -132,7 +134,7 @@ function Get-ExchangeISO {
         $fileBrowser.ShowDialog()
         [string]$exoISO = $fileBrowser.FileName
         $exoISO = $exoISO.Replace("\","\\")
-        Add-Content -Path $serverVMFileName -Value ('res_0001 = ' + $exoISO)
+        Add-Content -Path $serverVMFileName -Value ('ExchangeIsoPath = ' + $exoISO)
 }
 function Get-DAGIPAddress {
     ## There must be at least one IP address for the DAG but there may be more
@@ -171,7 +173,7 @@ function Get-DAGIPAddress {
             }
         }
     }
-    Add-Content -Path $serverVarFile -Value ('res_0033 = ' + $dagIPAddresses)
+    Add-Content -Path $serverVarFile -Value ('DagIpAddress = ' + $dagIPAddresses)
 }
 function AskFor-DAGIPAddress {
     param([int]$ipCount)
@@ -209,7 +211,7 @@ function Get-VMParentDisk {
             [string]$parentVHD = $fileBrowser.FileName
         }
         $parentVHD = $parentVHD.Replace("\","\\")
-        Add-Content -Path $serverVMFileName -Value ('res_0009 = ' + $parentVHD)
+        Add-Content -Path $serverVMFileName -Value ('VmParentVhdPath = ' + $parentVHD)
         return $true
     }
     else {return $false}
@@ -225,7 +227,7 @@ function Get-VMBaseDisk {
         [string]$serverVHD = $fileBrowser.FileName
     }
     $serverVHD = $serverVHD.Replace("\","\\")
-    Add-Content -Path $serverVMFileName -Value ('res_0002 = ' + $serverVHD)    
+    Add-Content -Path $serverVMFileName -Value ('ServerVhdPath = ' + $serverVHD)    
 }
 function Get-NewVMGeneration {
     $gen1 = New-Object System.Management.Automation.Host.ChoiceDescription 'Generation &1', '1'
@@ -283,7 +285,7 @@ function Get-AdminCredential {
     $validUPN = $false
     while($validUPN -eq $false) {
         Write-Host "Getting your lab credentials using the UPN..." -ForegroundColor Green
-        $adminCred = Get-Credential -Message "Enter the lab domain credentials using UPN"
+        $adminCred = Get-Credential -UserName administrator@resource.local -Message "Enter the lab domain credentials using UPN"
         if($adminCred.UserName -like "*@*" -and $adminCred.UserName -like "*.*") {
             $validUPN = $true
         }
@@ -297,18 +299,18 @@ function Get-AdminCredential {
 function Prepare-ExchangeConnect {
     $basicEnabled = $false
     while($basicEnabled -eq $false) {
-        [string]$exchServer = Read-HostWithColor "Enter an Exchange Server to connect: "
+        [string]$Script:exchServer = Read-HostWithColor "Enter an Exchange Server to connect: "
         ## Add the Exchange server to the hosts file to ensure we don't have name resolution issues
-        if($exchServer -notlike "*.*") {
-            $dnsHost = "$exchServer.$domain"
+        if($Script:exchServer -notlike "*.*") {
+            $dnsHost = "$Script:exchServer.$domain"
             $hostIP = (Resolve-DnsName -Name $dnsHost -Server $tempDNS).IPAddress
             try { Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore }
             catch {}
-            try { Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $exchServer" -ErrorAction Ignore }
+            try { Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $Script:exchServer" -ErrorAction Ignore }
             catch { Write-Warning "Unable to update HOSTS file." }
         }
         else { 
-            $dnsHost = $exchServer 
+            $dnsHost = $Script:exchServer 
             $hostIP = (Resolve-DnsName -Name $dnsHost -Server $tempDNS).IPAddress
             try { Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore  }
             catch { Write-Warning "Unable to update HOSTS file." }
@@ -316,28 +318,53 @@ function Prepare-ExchangeConnect {
             try { Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore  }
             catch { Write-Warning "Unable to update HOSTS file." }
         }
-        $basicEnabled = Enable-BasicAuthentication
+        $basicEnabled = Enable-BasicAuthentication -RemoteShellServer $Script:exchServer
     }
-    return $exchServer
+    return $Script:exchServer
 }
 function Connect-Exchange {
-    Write-Host "Connecting to Exchange remote PowerShell session..." -ForegroundColor Green
-    try { Import-PSSession (New-PSSession -Name ExchangeShell -ConfigurationName Microsoft.Exchange -ConnectionUri https://$exchServer/PowerShell -AllowRedirection -Authentication Basic -Credential $credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck) -ErrorAction Ignore) -AllowClobber -ErrorAction Ignore -WarningAction Ignore | Out-Null}
-    catch { Write-Warning "Connection attempt to $exchServer failed. Retrying..."
-        Start-Sleep -Seconds 5
-        Connect-Exchange
+    $ConnectedToExchange = $false
+    $ConnectionAttempt = 0
+    while($ConnectedToExchange -eq $false) {
+        try {
+            $ConnectionAttempt++
+            Write-Host "Connecting to Exchange remote PowerShell sessionon $Script:exchServer..." -ForegroundColor Green
+            Import-PSSession (New-PSSession -Name ExchangeShell -ConfigurationName Microsoft.Exchange -ConnectionUri https://$Script:exchServer/PowerShell -AllowRedirection -Authentication Basic -Credential $credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck) -ErrorAction Ignore) -AllowClobber -ErrorAction Ignore -WarningAction Ignore | Out-Null
+            $ConnectedToExchange = $true
+        }
+        catch { 
+            Write-Warning "Connection attempt to $Script:exchServer failed."
+            [string]$Script:exchServer = Read-Host "Please enter a different Exchange server for the remote PowerShell session: "
+            Enable-BasicAuthentication -RemoteShellServer $Script:exchServer
+            #Start-Sleep -Seconds 5
+        }
+        if($ConnectionAttempt -eq 5) {
+            Write-Warning "Unable to connect to an Exchange remote PowerShell session."
+            Write-Host "Reverting DNS settings..." -ForegroundColor Green -NoNewline
+            if(($dnsServers.ServerAddresses).Count -eq 1) {
+                Set-DnsClientServerAddress -InterfaceIndex (Get-NetIPConfiguration | Where {$_.IPv4DefaultGateway -ne $null}).InterfaceIndex -ServerAddresses $dnsServers.ServerAddresses[0] | Out-Null
+            }
+            else {
+                Set-DnsClientServerAddress -InterfaceIndex (Get-NetIPConfiguration | Where {$_.IPv4DefaultGateway -ne $null}).InterfaceIndex -ServerAddresses $dnsServers.ServerAddresses[0],$dnsServers.ServerAddresses[1] | Out-Null
+            }
+            Write-Host "COMPLETE"
+            Remove-Item C:\Temp\hosts-$timeStamp -Confirm:$False -ErrorAction Ignore
+            Remove-Item c:\Temp\$serverName* -Confirm:$false -ErrorAction Ignore
+            exit
+        }
     }
 }
 function Enable-BasicAuthentication {
+     param(        [Parameter(Mandatory = $false)] [string]$RemoteShellServer)
     ## Add the Exchange server to the TrustedHosts list for WinRM
-    Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $exchServer -Force
+    Set-Item -Path WSMan:\localhost\Client\TrustedHosts -Value $RemoteShellServer -Force
     ## Connect to the Exchange server to enable Basic authentication on the PowerShell vDir
     Write-Host "Enabling basic authentication on the PowerShell vDir temporarily..." -ForegroundColor Green -NoNewline
     $session = $null
-    $session = New-PSSession -Credential $credential -ComputerName $exchServer -Name EnableBasic -ErrorAction SilentlyContinue
+    $session = New-PSSession -Credential $credential -ComputerName $RemoteShellServer -Name EnableBasic -ErrorAction SilentlyContinue
     if($session -eq $null) {
         Write-Host "FAILED" -ForegroundColor Red
-        Write-Host "Unable to enable basic authentication on $exchServer. Please try another server." -ForegroundColor Red
+        Write-Host "Unable to enable basic authentication on $RemoteShellServer. Please try another server." -ForegroundColor Red
         return $false
     }
     Write-Host "COMPLETE"
@@ -364,7 +391,7 @@ function Select-ExchangeVersion {
     $ex19 = New-Object System.Management.Automation.Host.ChoiceDescription 'Exchange 201&9', 'Exchange version: Exchange 2019'
     $exOption = [System.Management.Automation.Host.ChoiceDescription[]]($ex15, $ex16, $ex19)
     $exVersion = $Host.UI.PromptForChoice("Server deployment script","What version of Exchange are you installing", $exOption, 2)
-    Add-Content -Path $serverVarFile -Value ('res_0003 = ' + $exVersion)
+    Add-Content -Path $serverVarFile -Value ('ExchangeVersion = ' + $exVersion)
     return $exVersion
 }
 function Get-MailboxDatabaseStatus {
@@ -390,7 +417,7 @@ function Sync-AdConfigPartition {
         $toServer = $toServer.Substring(0, $toServer.IndexOf(","))
         [string]$configPartition = ($_.ReplicateToDirectoryServer).Substring($_.ReplicateToDirectoryServer.IndexOf("CN=Configuration"))
         $ScriptBlock = { Param ($param1,$param2,$param3,$param4,$param5) repadmin /replicate $param1 $param2 "$param3" /u:$param4 /pw:$param5 /force }
-        Invoke-Command  -ComputerName $exchServer -ScriptBlock $scriptBlock -Credential $credential -ArgumentList $fromServer, $toServer, $configPartition, $repUser, $Password | Out-Null
+        Invoke-Command  -ComputerName $Script:exchServer -ScriptBlock $scriptBlock -Credential $credential -ArgumentList $fromServer, $toServer, $configPartition, $repUser, $Password | Out-Null
     }
 }
 function Get-ServerInfo {
@@ -400,10 +427,10 @@ function Get-ServerInfo {
     $dhcpOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
     $dhcpResult= $Host.UI.PromptForChoice("Server deployment script","Do you want to enable DHCP for this server?", $dhcpOption, 1)
     switch($dhcpResult) {
-        0 { Add-Content -Path $serverVarFile -Value ('res_0026 = 1') 
+        0 { Add-Content -Path $serverVarFile -Value ('EnableDhcp = 1') 
             $dnsOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
             $dnsResult= $Host.UI.PromptForChoice("Server deployment script","Do you want to manually assign DNS?", $dnsOption, 1)
-            Add-Content -Path $serverVarFile -Value ('res_0027 = ' + $dnsResult) 
+            Add-Content -Path $serverVarFile -Value ('DnsFromDhcp = ' + $dnsResult) 
             if($dnsResult -eq 0) {
                 Get-PrimaryDNS
                 Get-SecondaryDNS
@@ -417,18 +444,18 @@ function Get-ServerInfo {
                     $IpAddress = $null
                 }
             }
-            Add-Content -Path $serverVarFile -Value ('res_0007 = ' + $IpAddress)
+            Add-Content -Path $serverVarFile -Value ('IpAddress = ' + $IpAddress)
             $SubnetMask = $null
             while($SubnetMask -eq $null) {
                 $SubnetMask = Test-IP(Read-HostWithColor "Enter the subnet mask: ")
             }
             [int]$SubnetMaskPrefixLength = Convert-RvNetSubnetMaskClassesToCidr $SubnetMask
-            Add-Content -Path $serverVarFile -Value ('res_0008 = ' + $SubnetMaskPrefixLength)
+            Add-Content -Path $serverVarFile -Value ('SubnetMask = ' + $SubnetMaskPrefixLength)
             $Gateway = $null
             while($Gateway -eq $null) {
                 $Gateway = Test-IP(Read-HostWithColor "Enter the default gateway: ")
             }
-            Add-Content -Path $serverVarFile -Value ('res_0009 = ' + $Gateway)
+            Add-Content -Path $serverVarFile -Value ('Gateway = ' + $Gateway)
             Get-PrimaryDNS
             Get-SecondaryDNS
         }
@@ -475,7 +502,7 @@ function Get-PrimaryDNS {
     while($PrimaryDNS -eq $null) {
         $PrimaryDNS = Test-IP(Read-HostWithColor "Enter the Primary DNS server address: ")
     }
-    Add-Content -Path $serverVarFile -Value ('res_0010 = ' + $PrimaryDNS)
+    Add-Content -Path $serverVarFile -Value ('PrimaryDns = ' + $PrimaryDNS)
 }
 function Get-SecondaryDNS {
     ## Secondary DNS value may be empty
@@ -493,7 +520,7 @@ function Get-SecondaryDNS {
             $checkDNS = Test-IP($secondaryDNS)
         }
     }
-    Add-Content -Path $serverVarFile -Value ('res_0011 = ' + $SecondaryDNS)
+    Add-Content -Path $serverVarFile -Value ('SecondaryDns = ' + $SecondaryDNS)
 }
 function AskFor-SecondaryDNS() {
 ## Request secondary DNS server from user
@@ -536,7 +563,7 @@ function Get-ServerCertificate {
     }
     if($exportCert -eq $false) { return $null }
     else { 
-        Add-Content -Path $serverVarFile -Value ('res_0002 = ' + $thumbprint)
+        Add-Content -Path $serverVarFile -Value ('CertThumprint = ' + $thumbprint)
         $thumbprint = $thumbprint | Out-String
          return $thumbprint
         
@@ -552,12 +579,12 @@ function Check-ServerOnline {
 function Create-NewDAG {
     ## Get information for create a new database availability group
     $DagName = Read-HostWithColor "Enter the name for the new Database Availability Group: "
-    Add-Content -Path $serverVarFile -Value ('res_0001 = ' + $DagName)
+    Add-Content -Path $serverVarFile -Value ('DagName = ' + $DagName)
     $witnessServer = Read-HostWithColor "Enter the name of the witness server: "
-    Add-Content -Path $serverVarFile -Value ('res_0018 = ' + $witnessServer)
+    Add-Content -Path $serverVarFile -Value ('WitnessServer = ' + $witnessServer)
     $witnessDirectory = Read-HostWithColor "Enter the path for the witness directory: "
     $witnessDirectory = $witnessDirectory.Replace("\","\\")
-    Add-Content -Path $serverVarFile -Value ('res_0019 = ' + $witnessDirectory)
+    Add-Content -Path $serverVarFile -Value ('WitnessDirectory = ' + $witnessDirectory)
 }
 function Skip-DagCheck {
     ## Don't verify the existence of the DAG for multiple server deployments
@@ -579,7 +606,7 @@ function Check-NewDeployment {
     }
     else {
         $DagName = Read-HostWithColor "Enter the Database Availability Group name: "
-        Add-Content -Path $serverVarFile -Value ('res_0001 = ' + $DagName)
+        Add-Content -Path $serverVarFile -Value ('DagName = ' + $DagName)
     }
 }
 function Create-ServerVariableFile {
@@ -707,7 +734,7 @@ if($forestInstallType -eq 1 -or $newInstallType -eq 0) {
         }
         else { 
             Write-Warning "Please enter the username in UPN format."
-            Start-Sleep -Seconds 3
+            #Start-Sleep -Seconds 3
         }
     }
     [string]$domainController = (Resolve-DnsName $domain -Type SRV -Server $tempDNS -ErrorAction Ignore).PrimaryServer
@@ -771,17 +798,17 @@ while($deployServer -eq $true) {
     }
     $vmServers.Add($ServerName) | Out-Null
     $serverVarFile = Create-ServerVariableFile
-    Add-Content -Path $serverVarFile -Value ('res_0000 = ' + $ServerName)
-    Add-Content -Path $serverVarFile -Value ('res_0012 = ' + $Password)
-    Add-Content -Path $serverVarFile -Value ('res_0014 = ' + $domain)
+    Add-Content -Path $serverVarFile -Value ('ServerName = ' + $ServerName)
+    Add-Content -Path $serverVarFile -Value ('DomainPassword = ' + $Password)
+    Add-Content -Path $serverVarFile -Value ('Domain = ' + $domain)
     ## Check if new AD forest was created and set the domain admin account
     if($credential -eq $null -or $forestInstallType -eq 0) { # -and $newInstallType -eq 0) {
-        Add-Content -Path $serverVarFile -Value ('res_0031 = ' + $vmServers[0])
-        Add-Content -Path $serverVarFile -Value ('res_0013 = Administrator')
+        Add-Content -Path $serverVarFile -Value ('DomainController = ' + $vmServers[0])
+        Add-Content -Path $serverVarFile -Value ('Username = Administrator')
     }
     else {
-        Add-Content -Path $serverVarFile -Value ('res_0031 = ' + $domainController)
-        Add-Content -Path $serverVarFile -Value ('res_0013 = ' + $UserName)
+        Add-Content -Path $serverVarFile -Value ('DomainController = ' + $domainController)
+        Add-Content -Path $serverVarFile -Value ('Username = ' + $UserName)
     }
 
     ## Creating a variable file to store VM information
@@ -794,7 +821,7 @@ while($deployServer -eq $true) {
     $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
     $yesNoOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
     $ipV6Result = $Host.UI.PromptForChoice("Server deployment script","Do you want to disable IPv6 on this server?", $yesNoOption, 0)
-    Add-Content -Path $serverVarFile -Value ('res_0006 = ' + $ipV6Result)
+    Add-Content -Path $serverVarFile -Value ('IpV6 = ' + $ipV6Result)
 
     if($newInstallType -eq 1) {
         if($forestInstallType -eq $null) {
@@ -804,7 +831,7 @@ while($deployServer -eq $true) {
         $adSafeModePwd = Read-Host "Please enter the Directory Services restore mode password" -AsSecureString
         $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($adSafeModePwd)            
         $adSafeModePwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
-        Add-Content -Path $serverVarFile -Value ('res_0105 = ' + $adSafeModePwd)
+        Add-Content -Path $serverVarFile -Value ('AdSafeModePassword = ' + $adSafeModePwd)
         if($credential -ne $null) {
             ##Get a list of available AD sites
             Set-Item WSMan:\localhost\Client\TrustedHosts $domainController -Force
@@ -814,44 +841,44 @@ while($deployServer -eq $true) {
         while($adSiteName.Length -eq 0) {
             $adSiteName = Read-HostWithColor "Enter the Active Directory site name for this DC: "
         }
-        Add-Content -Path $serverVarFile -Value ('res_0106 = ' + $adSiteName)
+        Add-Content -Path $serverVarFile -Value ('AdSiteName = ' + $adSiteName)
         ## This is a not an Exchange server so just get information for the VM
         Get-ServerInfo
-        Add-Content -Path $serverVMFileName -Value ('res_0003 = 0')
+        Add-Content -Path $serverVMFileName -Value ('NewVm = 0')
         Write-Host "Getting some information for setting up the new VM..." -ForegroundColor Green
         ## Show a list of available virtual switches
         #Get-VMSwitch | ft
         $switches
         ## Get the virtual switch for the VM
         $vmSwitch = Get-NewVMSwitchName
-        Add-Content -Path $serverVMFileName -Value ('res_0004 = ' + $vmSwitch)
+        Add-Content -Path $serverVMFileName -Value ('VmSwitch = ' + $vmSwitch)
         ## Get the amount of memory to assign to the VM
         $vmMemory = Get-NewVMMemory
-        Add-Content -Path $serverVMFileName -Value ('res_0005 = ' + $vmMemory)
+        Add-Content -Path $serverVMFileName -Value ('VmMemory = ' + $vmMemory)
         ## Get the number of processors to assign to the VM
         $vmCPU = Get-NewVMCPU
-        Add-Content -Path $serverVMFileName -Value ('res_0006 = ' + $vmCPU)
+        Add-Content -Path $serverVMFileName -Value ('VmCpus = ' + $vmCPU)
         ## Prompt where to save the VHD for the VM
         $vhdPath = Get-NewVMPath
-        Add-Content -Path $serverVMFileName -Value ('res_0007 = ' + $vhdPath)
+        Add-Content -Path $serverVMFileName -Value ('VmVhdPath = ' + $vhdPath)
         if(!(Get-VMParentDisk)) { Get-VMBaseDisk }
         $generationResult = Get-NewVMGeneration
-        Add-Content -Path $serverVMFileName -Value ('res_0008 = ' + $generationResult)
+        Add-Content -Path $serverVMFileName -Value ('VmGeneration = ' + $generationResult)
         ## And also add info for the server install
-        Add-Content -Path $serverVarFile -Value ('res_0099 = ' + $newInstallType)
-        Add-Content -Path $serverVarFile -Value ('res_0100 = ' + $forestInstallType)
-        Add-Content -Path $serverVarFile -Value ('res_0101 = ' + $domain)
+        Add-Content -Path $serverVarFile -Value ('ServerType = ' + $newInstallType)
+        Add-Content -Path $serverVarFile -Value ('NewAdForest = ' + $forestInstallType)
+        Add-Content -Path $serverVarFile -Value ('AdDomain = ' + $domain)
         if($forestInstallType -eq 0) {
-            Add-Content -Path $serverVarFile -Value ('res_0102 = ' + $domainMode)
-            Add-Content -Path $serverVarFile -Value ('res_0103 = ' + $forestMode)
-            Add-Content -Path $serverVarFile -Value ('res_0104 = ' + $netBIOSName)
+            Add-Content -Path $serverVarFile -Value ('DomainMode = ' + $domainMode)
+            Add-Content -Path $serverVarFile -Value ('ForestMode = ' + $forestMode)
+            Add-Content -Path $serverVarFile -Value ('DomainNetBiosName = ' + $netBIOSName)
         }
     }
     else {
         $askForCertificateLater = $false
-        Add-Content -Path $serverVarFile -Value ('res_0099 = ' + $newInstallType)
-        Add-Content -Path $serverVarFile -Value ('res_0004 = ' + $exInstallType)
-        Add-Content -Path $serverVMFileName -Value ('res_0003 = ' + $exInstallType)
+        Add-Content -Path $serverVarFile -Value ('ServerType = ' + $newInstallType)
+        Add-Content -Path $serverVarFile -Value ('ExchangeInstallType = ' + $exInstallType)
+        Add-Content -Path $serverVMFileName -Value ('NewVm = ' + $exInstallType)
 
         ## Update variable file with server info
         Write-Host "Getting server information..." -ForegroundColor Green
@@ -864,22 +891,22 @@ while($deployServer -eq $true) {
                 #Get-VMSwitch | ft
                 ## Get the virtual switch for the VM
                 $vmSwitch = Get-NewVMSwitchName
-                Add-Content -Path $serverVMFileName -Value ('res_0004 = ' + $vmSwitch)
+                Add-Content -Path $serverVMFileName -Value ('VmSwitch = ' + $vmSwitch)
                 ## Get the amount of memory to assign to the VM
                 $vmMemory = Get-NewVMMemory
-                Add-Content -Path $serverVMFileName -Value ('res_0005 = ' + $vmMemory)
+                Add-Content -Path $serverVMFileName -Value ('VmMemory = ' + $vmMemory)
                 ## Get the number of processors to assign to the VM
                 $vmCPU = Get-NewVMCPU
-                Add-Content -Path $serverVMFileName -Value ('res_0006 = ' + $vmCPU)
+                Add-Content -Path $serverVMFileName -Value ('VmCpus = ' + $vmCPU)
                 ## Prompt where to save the VHD for the Exchange VM
                 while($vhdPath.Length -eq 0) {
                     $vhdPath = Get-NewVMPath
                 }
                 if(!(Get-VMParentDisk)) { Get-VMBaseDisk }
-                Add-Content -Path $serverVMFileName -Value ('res_0007 = ' + $vhdPath)
+                Add-Content -Path $serverVMFileName -Value ('VmVhdPath = ' + $vhdPath)
                 ## Prompt the user for an Exchange server to setup a remote PowerShell session
                 $generationResult = Get-NewVMGeneration
-                Add-Content -Path $serverVMFileName -Value ('res_0008 = ' + $generationResult)
+                Add-Content -Path $serverVMFileName -Value ('VmGeneration = ' + $generationResult)
             } 
     
             1 { ## Add IP information into hosts file for name resolution
@@ -900,25 +927,25 @@ while($deployServer -eq $true) {
                         $ipAddr = Invoke-Command -Session $session -ScriptBlock { Get-NetIPConfiguration | Where {$_.Ipv4DefaultGateway.NextHop -ne $null} }
                         ## Exchange server may be cluster group owner and have multiple IP addresses
                         if($ipaddr.IPv4Address.Count -gt 1) {
-                            Add-Content -Path $serverVarFile -Value ('res_0007 = ' + $ipAddr.IPv4Address.IPAddress[0])
-                            Add-Content -Path $serverVarFile -Value ('res_0008 = ' + $ipAddr.IPv4Address.PrefixLength[0])
+                            Add-Content -Path $serverVarFile -Value ('IpAddress = ' + $ipAddr.IPv4Address.IPAddress[0])
+                            Add-Content -Path $serverVarFile -Value ('SubnetMask = ' + $ipAddr.IPv4Address.PrefixLength[0])
                         }
                         else {
-                            Add-Content -Path $serverVarFile -Value ('res_0007 = ' + $ipAddr.IPv4Address.IPAddress)
-                            Add-Content -Path $serverVarFile -Value ('res_0008 = ' + $ipAddr.IPv4Address.PrefixLength)                
+                            Add-Content -Path $serverVarFile -Value ('IpAddress = ' + $ipAddr.IPv4Address.IPAddress)
+                            Add-Content -Path $serverVarFile -Value ('SubnetMask = ' + $ipAddr.IPv4Address.PrefixLength)                
                         }
-                        Add-Content -Path $serverVarFile -Value ('res_0009 = ' + $ipAddr.IPv4DefaultGateway.NextHop)
+                        Add-Content -Path $serverVarFile -Value ('Gateway = ' + $ipAddr.IPv4DefaultGateway.NextHop)
                         ## May only have a primary DNS server
                         $dns = $ipAddr.DNSServer
                         if(($dns.ServerAddresses).Count -eq 1) {
-                            Add-Content -Path $serverVarFile -Value ('res_0010 = ' + $dns.ServerAddresses)
+                            Add-Content -Path $serverVarFile -Value ('PrimaryDns = ' + $dns.ServerAddresses)
                         }
                         else {
-                            Add-Content -Path $serverVarFile -Value ('res_0010 = ' + $dns.ServerAddresses[0])
-                            Add-Content -Path $serverVarFile -Value ('res_0011 = ' + $dns.ServerAddresses[1])
+                            Add-Content -Path $serverVarFile -Value ('PrimaryDns = ' + $dns.ServerAddresses[0])
+                            Add-Content -Path $serverVarFile -Value ('SecondaryDns = ' + $dns.ServerAddresses[1])
                         }
                     }
-                    else { Add-Content -Path $serverVarFile -Value ('res_0026 = 1') }
+                    else { Add-Content -Path $serverVarFile -Value ('EnableDhcp = 1') }
                     Write-Host "COMPLETE"
                     ## Get disk information
                     Write-Host "Getting disk information..." -ForegroundColor Green -NoNewline
@@ -962,7 +989,7 @@ while($deployServer -eq $true) {
                 } 
             }
         }
-        $exchServer = $null
+        $Script:exchServer = $null
         $noExchange = $false
         ## Check for an Exchange management session, otherwise verify there is no Exchange organization in the forest
         if(!(Get-PSSession | Where { $_.ConfigurationName -eq "Microsoft.Exchange" } )) {
@@ -973,7 +1000,7 @@ while($deployServer -eq $true) {
             $continueResult= $Host.UI.PromptForChoice("Server deployment script","Would you like to connect to Exchange now?", $yesNoOption, 0)
             switch($continueResult) {
                 0 {## Enable basic authentication on the Exchange server
-                    $exchServer = Prepare-ExchangeConnect
+                    $Script:exchServer = Prepare-ExchangeConnect
                     ## Connect to the Exchange remote PowerShell session
                     Connect-Exchange
                 }
@@ -986,13 +1013,13 @@ while($deployServer -eq $true) {
                         if((Get-ADObject -LDAPFilter "(objectClass=msExchOrganizationContainer)" -SearchBase $configPartition -Server $domainController -Credential $credential)) {
                             ## Found an Exchange organization so an Exchange connection should be made
                             Write-Warning "Exchange is already present in the enviornment and you must connect prior to running this script"
-                            $exchServer = Prepare-ExchangeConnect
+                            $Script:exchServer = Prepare-ExchangeConnect
                             Connect-Exchange
                         }
                         else {
                             ## There is no Exchange organization so we need to potentially create one
                             $noExchange = $true
-                            Add-Content -Path $serverVarFile -Value ('res_0028 = 1')
+                            Add-Content -Path $serverVarFile -Value ('ExchangeOrgMissing = 1')
                             ## Prompt the user for an Exchange server to setup a remote PowerShell session
                             $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
                             $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
@@ -1000,34 +1027,34 @@ while($deployServer -eq $true) {
                             $newOrgResult= $Host.UI.PromptForChoice("Server deployment script","Would you like to create a new Exchange organization?", $yesNoOption, 0)
                             if($newOrgResult -eq 0) { 
                                 $exOrgName = Read-HostWithColor "Enter the name for the new Exchange organization: "
-                                Add-Content -Path $serverVarFile -Value ('res_0029 = ' + $exOrgName)
+                                Add-Content -Path $serverVarFile -Value ('ExchangeOrgName = ' + $exOrgName)
                             }
                         }
                     }
                     else {
                         ## This is a new deployment and a new Exchange organization may be needed
                         $noExchange = $true
-                        Add-Content -Path $serverVarFile -Value ('res_0028 = 1')
+                        Add-Content -Path $serverVarFile -Value ('ExchangeOrgMissing = 1')
                         $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
                         $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
                         $yesNoOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
                         $newOrgResult= $Host.UI.PromptForChoice("Server deployment script","Would you like to create a new Exchange organization?", $yesNoOption, 0)
                         if($newOrgResult -eq 0) { 
                             $exOrgName = Read-HostWithColor "Enter the name for the new Exchange organization: "
-                            Add-Content -Path $serverVarFile -Value ('res_0029 = ' + $exOrgName)
+                            Add-Content -Path $serverVarFile -Value ('ExchangeOrgName = ' + $exOrgName)
                         }
                     }
                 }
             }
         }
         else { 
-            $exchServer = (Get-PSSession | Where { $_.ConfigurationName -eq "Microsoft.Exchange" } | Select -Last 1).ComputerName
+            $Script:exchServer = (Get-PSSession | Where { $_.ConfigurationName -eq "Microsoft.Exchange" } | Select -Last 1).ComputerName
             ## Add the Exchange server to the hosts file to ensure we don't have name resolution issues
-            if($dnsHost -notlike "*$($domain)") { $dnsHost = "$exchServer.$domain" }
+            if($dnsHost -notlike "*$($domain)") { $dnsHost = "$Script:exchServer.$domain" }
             $hostIP = (Resolve-DnsName -Name $dnsHost -Server $tempDNS).IPAddress
             try{ Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"  -ErrorAction Ignore }
             catch { Write-Warning "Unable to update HOSTS file." }
-            try{ Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $exchServer" -ErrorAction Ignore  }
+            try{ Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $Script:exchServer" -ErrorAction Ignore  }
             catch { Write-Warning "Unable to update HOSTS file." }
         }
 
@@ -1065,13 +1092,13 @@ while($deployServer -eq $true) {
                     $exEdgeRole = New-Object System.Management.Automation.Host.ChoiceDescription '&Edge Transport', 'Edge Transport server role'
                     $exRoleOption = [System.Management.Automation.Host.ChoiceDescription[]]($exMbxRole, $exEdgeRole)
                     $exRoleResult = $Host.UI.PromptForChoice("Server deployment script","What Exchange server roles should be installed:", $exRoleOption, 0)
-                    Add-Content -Path $serverVarFile -Value ('res_0005 = ' + $exRoleResult)
+                    Add-Content -Path $serverVarFile -Value ('ExchangeRole = ' + $exRoleResult)
                 }
                 1 { $exMbxRole = New-Object System.Management.Automation.Host.ChoiceDescription '&Mailbox', 'Mailbox server role'
                     $exEdgeRole = New-Object System.Management.Automation.Host.ChoiceDescription '&Edge Transport', 'Edge Transport server role'
                     $exRoleOption = [System.Management.Automation.Host.ChoiceDescription[]]($exMbxRole, $exEdgeRole)
                     $exRoleResult = $Host.UI.PromptForChoice("Server deployment script","What Exchange server roles should be installed:", $exRoleOption, 0)
-                    Add-Content -Path $serverVarFile -Value ('res_0005 = ' + $exRoleResult)
+                    Add-Content -Path $serverVarFile -Value ('ExchangeRole = ' + $exRoleResult)
                 }
                 0{ $exAllRoles = New-Object System.Management.Automation.Host.ChoiceDescription '&All', 'All roles'
                     $exMbxRole = New-Object System.Management.Automation.Host.ChoiceDescription '&Mailbox', 'Mailbox server role'
@@ -1079,36 +1106,36 @@ while($deployServer -eq $true) {
                     $exEdgeRole = New-Object System.Management.Automation.Host.ChoiceDescription '&Edge Transport', 'Edge Transport server role'
                     $exRoleOption = [System.Management.Automation.Host.ChoiceDescription[]]($exAllRoles, $exMbxRole, $exCasRole, $exEdgeRole)
                     $exRoleResult = $Host.UI.PromptForChoice("Server deployment script","What Exchange server roles should be installed:", $exRoleOption, 0)
-                    Add-Content -Path $serverVarFile -Value ('res_0005 = ' + $exRoleResult)
+                    Add-Content -Path $serverVarFile -Value ('ExchangeRole = ' + $exRoleResult)
                     ## Ask which version of Microsoft .NET Framework to install
                     $seven = New-Object System.Management.Automation.Host.ChoiceDescription '.NET 4.&7.2', '4.7.2'
                     $eight = New-Object System.Management.Automation.Host.ChoiceDescription '.NET 4.&8', '4.8'
                     $dotNetOption = [System.Management.Automation.Host.ChoiceDescription[]]($eight, $seven)
                     $dotNetResult = $Host.UI.PromptForChoice("Server deployment script","Which version of the Microsoft .NET Framework do you want to instll?", $dotNetOption, 0)
-                    Add-Content -Path $serverVarFile -Value ('res_0016 = ' + $dotNetResult)
+                    Add-Content -Path $serverVarFile -Value ('DotNetResult = ' + $dotNetResult)
                 }
             }
             ## Check if the certificate from the remote PowerShell session Exchange server should be used
             if($noExchange -eq $false) {
                 if(Get-CertificateFromServerCheck) {
                     ## Need to fix the next line
-                    if($exchServer -like "*.*") { $certServer = $exchServer.Substring(0, $exchServer.IndexOf(".")) }
-                    else { $certServer = $exchServer }
+                    if($Script:exchServer -like "*.*") { $certServer = $Script:exchServer.Substring(0, $Script:exchServer.IndexOf(".")) }
+                    else { $certServer = $Script:exchServer }
                     [string]$thumb = Get-ServerCertificate
                 }
             }
             ## Get hostname values for the Exchange virtual directories
             $intHostname = (Read-HostWithColor "Enter the hostname for the internal URLs: ").ToLower()
-            Add-Content -Path $serverVarFile -Value ('res_0020 = ' + $intHostname)
+            Add-Content -Path $serverVarFile -Value ('InternalHostname = ' + $intHostname)
             $extHostname = (Read-HostWithColor "Enter the hostname for the external URLs: ").ToLower()
-            Add-Content -Path $serverVarFile -Value ('res_0021 = ' + $extHostname)
+            Add-Content -Path $serverVarFile -Value ('ExternalHostname = ' + $extHostname)
             ## Check whether the Exchange server should be added to an existing DAG, a new DAG, or none
             $ExistingDag = New-Object System.Management.Automation.Host.ChoiceDescription '&Existing', 'Existing'
             $NewDag = New-Object System.Management.Automation.Host.ChoiceDescription '&New', 'New'
             $NoDag = New-Object System.Management.Automation.Host.ChoiceDescription '&Standalone', 'None'
             $dagOption = [System.Management.Automation.Host.ChoiceDescription[]]($ExistingDag, $NewDag, $NoDag)
             $dagResult = $Host.UI.PromptForChoice("Server deployment script","Would you like to join and existing DAG, create a new DAG, or make a standalone server?", $dagOption, 0)
-            Add-Content -Path $serverVarFile -Value ('res_0015 = ' + $dagResult)
+            Add-Content -Path $serverVarFile -Value ('DagResult = ' + $dagResult)
             switch ($dagResult) {
                 0 { ## Join a DAG if Exchange is present otherwise create a DAG
                     if($noExchange -eq $false) {
@@ -1123,7 +1150,7 @@ while($deployServer -eq $true) {
                                     $validDag = Skip-DagCheck
                                 }
                             }
-                            Add-Content -Path $serverVarFile -Value ('res_0001 = ' + $DagName)
+                            Add-Content -Path $serverVarFile -Value ('DagName = ' + $DagName)
                         }
                         ## Create a new DAG if there is no DAG in the environment or skip for deploying multiple servers
                         else { Check-NewDeployment }
@@ -1136,7 +1163,7 @@ while($deployServer -eq $true) {
                     $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
                     $dagTypeOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
                     $dagType = $Host.UI.PromptForChoice("Server deployment script","Do you want to create the DAG without an administrative access point? (aka:IP-less)", $dagTypeOption, 0)
-                    Add-Content -Path $serverVarFile -Value ('res_0032 = ' + $dagType)
+                    Add-Content -Path $serverVarFile -Value ('DagType = ' + $dagType)
                     Create-NewDAG
                     if($dagType -eq 1) {
                         Get-DAGIPAddress
@@ -1149,18 +1176,18 @@ while($deployServer -eq $true) {
             $exchVersion = $exchVersion.Substring(11,1)
             switch($exchVersion) {
                 0 {
-                    Add-Content -Path $serverVarFile -Value ('res_0003 = 0')
+                    Add-Content -Path $serverVarFile -Value ('ExchangeVersion = 0')
                 }
                 1 {
-                    Add-Content -Path $serverVarFile -Value ('res_0003 = 1') 
+                    Add-Content -Path $serverVarFile -Value ('ExchangeVersion = 1') 
                     }
                 2 {
-                    Add-Content -Path $serverVarFile -Value ('res_0003 = 2') 
+                    Add-Content -Path $serverVarFile -Value ('ExchangeVersion = 2') 
                 }
             }
             ## Get the ISO for Exchange install
             Get-ExchangeISO
-            Add-Content -Path $serverVarFile -Value ('res_0005 = ' + $null)
+            Add-Content -Path $serverVarFile -Value ('ExchangeRole = ' + $null)
             ## Get the VHD disk information
             Write-Host "Determining VM disk settings..." -ForegroundColor Green
             [string]$vhdParentPath = (Get-VHD (Get-VMHardDiskDrive -VMName $ServerName)[0].Path).ParentPath
@@ -1184,57 +1211,57 @@ while($deployServer -eq $true) {
             ## Check if the servers was offline and if we need the certificate
             if($askForCertificateLater) {
                 if(Get-CertificateFromServerCheck) {
-                    if($exchServer -like "*.*") {
-                        $certServer = $exchServer.Substring(0, $exchServer.IndexOf("."))
+                    if($Script:exchServer -like "*.*") {
+                        $certServer = $Script:exchServer.Substring(0, $Script:exchServer.IndexOf("."))
                     }
-                    else { $certServer = $exchServer }
+                    else { $certServer = $Script:exchServer }
                     [string]$thumb = Get-ServerCertificate
                 }
             }
             #Get Client Access settings
             $AutoD = Get-ClientAccessServer $ServerName
-            Add-Content -Path $serverVarFile -Value ('res_0038 = ' + $AutoD.AutoDiscoverServiceInternalUri.AbsoluteUri)
-            Add-Content -Path $serverVarFile -Value ('res_0058 = ' + $AutoD.AutoDiscoverSiteScope)
+            Add-Content -Path $serverVarFile -Value ('AutodiscoverUrl = ' + $AutoD.AutoDiscoverServiceInternalUri.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('AutoDiscoverSiteScope = ' + $AutoD.AutoDiscoverSiteScope)
             $AutoD = $null
             $Ecp = Get-EcpVirtualDirectory -Server $ServerName -ADPropertiesOnly
-            Add-Content -Path $serverVarFile -Value ('res_0039 = ' + $Ecp.InternalUrl.AbsoluteUri)
-            Add-Content -Path $serverVarFile -Value ('res_0040 = ' + $Ecp.ExternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('EcpInternalUrl = ' + $Ecp.InternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('EcpExternalUrl = ' + $Ecp.ExternalUrl.AbsoluteUri)
             $Ecp = $null
             $Ews = Get-WebServicesVirtualDirectory -Server $ServerName -ADPropertiesOnly
-            Add-Content -Path $serverVarFile -Value ('res_0041 = ' + $Ews.InternalUrl.AbsoluteUri)
-            Add-Content -Path $serverVarFile -Value ('res_0042 = ' + $Ews.ExternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('EwsInternalUrl = ' + $Ews.InternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('EwsExternalUrl = ' + $Ews.ExternalUrl.AbsoluteUri)
             $Ews = $null
             $Mapi = Get-MapiVirtualDirectory -Server $ServerName -ADPropertiesOnly
-            Add-Content -Path $serverVarFile -Value ('res_0043 = ' + $Mapi.InternalUrl.AbsoluteUri)
-            Add-Content -Path $serverVarFile -Value ('res_0044 = ' + $Mapi.ExternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('MapiInternalUrl = ' + $Mapi.InternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('MapiExternalUrl = ' + $Mapi.ExternalUrl.AbsoluteUri)
             $Mapi = $null
             $Eas = Get-ActiveSyncVirtualDirectory -Server $ServerName -ADPropertiesOnly
-            Add-Content -Path $serverVarFile -Value ('res_0045 = ' + $Eas.ExternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('EasExternalUrl = ' + $Eas.ExternalUrl.AbsoluteUri)
             $Eas = $null
             $Oab = Get-OabVirtualDirectory -Server $ServerName -ADPropertiesOnly
-            Add-Content -Path $serverVarFile -Value ('res_0046 = ' + $Oab.InternalUrl.AbsoluteUri)
-            Add-Content -Path $serverVarFile -Value ('res_0047 = ' + $Oab.ExternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('OabInternalUrl = ' + $Oab.InternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('OabExternalUrl = ' + $Oab.ExternalUrl.AbsoluteUri)
             $Oab = $null
             $Owa = Get-OwaVirtualDirectory -Server $ServerName
-            Add-Content -Path $serverVarFile -Value ('res_0054 = ' + $Owa.InternalUrl.AbsoluteUri)
-            Add-Content -Path $serverVarFile -Value ('res_0055 = ' + $Owa.ExternalUrl.AbsoluteUri)
-            Add-Content -Path $serverVarFile -Value ('res_0056 = ' + $Owa.LogonFormat)
-            Add-Content -Path $serverVarFile -Value ('res_0057 = ' + $Owa.DefaultDomain)
+            Add-Content -Path $serverVarFile -Value ('OwaInternalUrl = ' + $Owa.InternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('OwaExternalUrl = ' + $Owa.ExternalUrl.AbsoluteUri)
+            Add-Content -Path $serverVarFile -Value ('OwaLogonFormat = ' + $Owa.LogonFormat)
+            Add-Content -Path $serverVarFile -Value ('OwaDefaultDomain = ' + $Owa.DefaultDomain)
             $Owa = $null
             $RpcHttp = Get-OutlookAnywhere -Server $ServerName
-            Add-Content -Path $serverVarFile -Value ('res_0048 = ' + $RpcHttp.InternalHostname)
-            Add-Content -Path $serverVarFile -Value ('res_0049 = ' + $RpcHttp.InternalClientsRequireSsl)
-            Add-Content -Path $serverVarFile -Value ('res_0050 = ' + $RpcHttp.InternalClientAuthenticationMethod)
-            Add-Content -Path $serverVarFile -Value ('res_0051 = ' + $RpcHttp.ExternalHostname)
-            Add-Content -Path $serverVarFile -Value ('res_0052 = ' + $RpcHttp.ExternalClientsRequireSsl)
-            Add-Content -Path $serverVarFile -Value ('res_0053 = ' + $RpcHttp.ExternalClientAuthenticationMethod)
+            Add-Content -Path $serverVarFile -Value ('OutlookAnywhereInternalHostname = ' + $RpcHttp.InternalHostname)
+            Add-Content -Path $serverVarFile -Value ('OutlookAnywhereInternalSsl = ' + $RpcHttp.InternalClientsRequireSsl)
+            Add-Content -Path $serverVarFile -Value ('OutlookAnywhereInternalAuth = ' + $RpcHttp.InternalClientAuthenticationMethod)
+            Add-Content -Path $serverVarFile -Value ('OutlookAnywhereExternalHostname = ' + $RpcHttp.ExternalHostname)
+            Add-Content -Path $serverVarFile -Value ('OutlookAnywhereExternalSsl = ' + $RpcHttp.ExternalClientsRequireSsl)
+            Add-Content -Path $serverVarFile -Value ('OutlookAnywhereExternalAuth = ' + $RpcHttp.ExternalClientAuthenticationMethod)
             $RpcHttp = $null
             ##Check if the Exchange server is a member of a DAG
             Write-Host "Checking if the Exchange server is a member of a DAG..." -ForegroundColor Green -NoNewline
             if(Get-DatabaseAvailabilityGroup -DomainController $domainController | Where { $_.Servers -match $ServerName }) {
                 Write-Host "MEMBER"
                 [string]$DagName = Get-DatabaseAvailabilityGroup -DomainController $domainController  | Where { $_.Servers -like '*' + $ServerName + '*'}
-                Add-Content -Path $serverVarFile -Value ('res_0001 = ' + $DagName)
+                Add-Content -Path $serverVarFile -Value ('DagName = ' + $DagName)
                 ## Check if the databases have multiple copies
                 $dbHasCopies = $false
                 Write-Host "Checking if the databases for this server have multiple copies..." -ForegroundColor Green
@@ -1291,12 +1318,12 @@ while($deployServer -eq $true) {
                         Write-Host "COMPLETE"
                     }
                 }
-                if($dbHasCopies -eq $true) { Add-Content -Path $serverVarFile -Value ('res_0025 = 1') }
+                if($dbHasCopies -eq $true) { Add-Content -Path $serverVarFile -Value ('DbHasCopies = 1') }
                 ##Remove the Exchange server from the database availability group
                 Write-Host "Checking DAC mode for the DAG..." -ForegroundColor Green -NoNewline
                 if((Get-DatabaseAvailabilityGroup $DagName -DomainController $domainController ).DatacenterActivationMode -eq "DagOnly") {
                     Write-Host "DagOnly"
-                    Add-Content -Path $serverVarFile -Value ('res_0030 = DagOnly')
+                    Add-Content -Path $serverVarFile -Value ('DatacenterActivationMode = DagOnly')
                     Write-Host "Checking the number of servers in the DAG..." -ForegroundColor Green
                     if((Get-DatabaseAvailabilityGroup -DomainController $domainController ).Servers.Count -eq 2) {
                         Write-Host "Disabling datacenter activation mode..." -ForegroundColor Yellow
@@ -1305,7 +1332,7 @@ while($deployServer -eq $true) {
                 }
                 else { 
                     Write-Host "OFF"
-                    Add-Content -Path $serverVarFile -Value ('res_0030 = Off')
+                    Add-Content -Path $serverVarFile -Value ('DatacenterActivationMode = Off')
                 }
                 Write-Host "Removing server from the DAG..." -ForegroundColor Green -NoNewline
                 if($serverOnline -eq $true) {
@@ -1329,7 +1356,7 @@ while($deployServer -eq $true) {
                     Write-Host "Removing $ServerName from the Windows cluster..." -ForegroundColor Green -NoNewline
                     $scriptBlock = { Param ($param1) Remove-ClusterNode -Name $param1 -Force -ErrorAction Ignore }
                     try {
-                        Invoke-Command -ScriptBlock $scriptBlock -ComputerName $exchServer -Credential $credential -ArgumentList $ServerName
+                        Invoke-Command -ScriptBlock $scriptBlock -ComputerName $Script:exchServer -Credential $credential -ArgumentList $ServerName
                         Write-Host "COMPLETE"
                     }
                     catch {Write-Host "FAILED"}
@@ -1377,9 +1404,9 @@ while($deployServer -eq $true) {
         ## Export the Exchange certificate
         Write-Host "Exporting current Exchange certificate with thumbprint $thumb from $certServer..." -ForegroundColor Green -NoNewline
         ## Need to check for c:\Temp
-        New-Item -ItemType Directory -Path "\\$exchServer\c$\Temp" -ErrorAction Ignore | Out-Null
+        New-Item -ItemType Directory -Path "\\$Script:exchServer\c$\Temp" -ErrorAction Ignore | Out-Null
         if(Get-Item "C:\Temp\$ServerName-Exchange.pfx" -ErrorAction Ignore) { Remove-Item "C:\Temp\$ServerName-Exchange.pfx" -Confirm:$False -Force}
-        $cert = Export-ExchangeCertificate -Server $exchServer -Thumbprint $thumb -BinaryEncoded -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force)
+        $cert = Export-ExchangeCertificate -Server $Script:exchServer -Thumbprint $thumb -BinaryEncoded -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force)
         Set-Content -Path "c:\Temp\$ServerName-Exchange.pfx" -Value $cert.FileData -Encoding Byte
         Write-Host "COMPLETE"
     }
@@ -1393,13 +1420,13 @@ while($deployServer -eq $true) {
         $yesNoOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
         $extendedProtectionEnabled = $Host.UI.PromptForChoice("Server deployment script","Do you want to enable Exchange Extended Protection?", $yesNoOption, 1)
         switch ($extendedProtectionEnabled) {
-            0 {Add-Content -Path $serverVarFile -Value ('res_0059 = 0')}
-            1 {Add-Content -Path $serverVarFile -Value ('res_0059 = 1')}
+            0 {Add-Content -Path $serverVarFile -Value ('ExchangeExtendedProtection = 0')}
+            1 {Add-Content -Path $serverVarFile -Value ('ExchangeExtendedProtection = 1')}
         }
     }
     
     ## Finalize the psd1 file
-    Add-Content -Path $serverVarFile -Value ('res_0022 = ' + $exchServer)
+    Add-Content -Path $serverVarFile -Value ('ExchangeShellServer = ' + $Script:exchServer)
     Add-Content -Path $serverVMFileName -Value '###PSLOC'
     Add-Content -Path $serverVMFileName -Value "'@"
 
@@ -1425,12 +1452,12 @@ while($deployServer -eq $true) {
 }
 
 ## Removing basic authentication from the PowerShell vDir
-if($exchServer -ne $null) {
+if($Script:exchServer -ne $null) {
     Write-Host "Removing the Exchange remote PowerShell session..." -ForegroundColor Green
     ## Disconnect from the Exchange remote PowerShell session
     Remove-PSSession -Name ExchangeShell
     Write-Host "Disabling basic authentication on the PowerShell vDir..." -ForegroundColor Green -NoNewline
-    $session = New-PSSession -Credential $credential -ComputerName $exchServer -Name DisableBasic
+    $session = New-PSSession -Credential $credential -ComputerName $Script:exchServer -Name DisableBasic
     $scriptBlock = { C:\Windows\system32\inetsrv\appcmd set config "Default Web Site/PowerShell/" /section:basicAuthentication /enabled:false /commit:apphost }
     Invoke-Command -Session $session -ScriptBlock $scriptBlock | Out-Null
     Write-Host "COMPLETE"
@@ -1474,7 +1501,7 @@ foreach($v in $vmServers) {
     if($versionCheck.Count -gt 0) {
         $version = ($versionCheck | Measure-Object -Maximum).Maximum
         ## Note the last version of Exchange that this server must check exists
-        Add-Content -Path $serverVarFile -Value ('res_0034 = '+ $version)
+        Add-Content -Path $serverVarFile -Value ('ExchangeVersionCheck = '+ $version)
     }
     ## Finalize the psd1 file
     
@@ -1490,16 +1517,17 @@ foreach($v in $vmServers) {
             Write-Host "COMPLETE"
         }
     }
+    Set-Location C:\Temp
     Import-LocalizedData -BindingVariable VM_LocalizedStrings -FileName $v"-VM-strings.psd1"
     ## Time to work in Hyper-V on the virtual machines
-    switch($VM_LocalizedStrings.res_0003) {
+    switch($VM_LocalizedStrings.NewVm) {
         0 { ## Create a new virtual machine using the settings provided
-            [int]$vmGen = [int]$VM_LocalizedStrings.res_0008 + 1
-            New-VM -Name $v -MemoryStartupBytes $VM_LocalizedStrings.res_0005 -SwitchName $VM_LocalizedStrings.res_0004 -NoVHD -BootDevice CD -Generation $vmGen | Out-Null
-            Set-VM -ProcessorCount $VM_LocalizedStrings.res_0006 -Name $v
+            [int]$vmGen = [int]$VM_LocalizedStrings.VmGeneration + 1
+            New-VM -Name $v -MemoryStartupBytes $VM_LocalizedStrings.VmMemory -SwitchName $VM_LocalizedStrings.VmSwitch -NoVHD -BootDevice CD -Generation $vmGen | Out-Null
+            Set-VM -ProcessorCount $VM_LocalizedStrings.VmCpus -Name $v
             Write-Host "COMPLETE"
-            $vhdPath = $VM_LocalizedStrings.res_0007
-            $vhdParentPath = $VM_LocalizedStrings.res_0009
+            $vhdPath = $VM_LocalizedStrings.VmVhdPath
+            $vhdParentPath = $VM_LocalizedStrings.VmParentVhdPath
             if($vmGen -eq 1) {
                 $vmDiskCL = 0
                 $vmDiskCN = 0
@@ -1517,7 +1545,7 @@ foreach($v in $vmServers) {
             Write-Host "Deleting the existing VHD file..." -ForegroundColor Green -NoNewline
             $vmHDD = (Get-VMHardDiskDrive -VMName $v)[0]
             [string]$vhdPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v)[0].Path).Path
-            [string]$vhdParentPath = $VM_LocalizedStrings.res_0009
+            [string]$vhdParentPath = $VM_LocalizedStrings.VmParentVhdPath
             $vmDiskCL = $vmHDD[0].ControllerLocation
             $vmDiskCN = $vmHDD[0].ControllerNumber
             Remove-Item -Path $vhdPath -Force
@@ -1531,9 +1559,9 @@ foreach($v in $vmServers) {
     
     Write-Host "Assigning the ISO to the CD drive for the VM..." -ForegroundColor Green -NoNewline
     $vmDvd = Get-VMDvdDrive -VMName $v
-    while($vmDvd.Path -ne $VM_LocalizedStrings.res_0001) {
+    while($vmDvd.Path -ne $VM_LocalizedStrings.ExchangeIsoPath) {
         Write-Host "." -ForegroundColor Green -NoNewline
-        $vmDvd | Set-VMDvdDrive -Path $VM_LocalizedStrings.res_0001 #-ControllerNumber $vmDvd.ControllerNumber $vmDvd.ControllerLocation
+        $vmDvd | Set-VMDvdDrive -Path $VM_LocalizedStrings.ExchangeIsoPath #-ControllerNumber $vmDvd.ControllerNumber $vmDvd.ControllerLocation
     }
     Write-Host "COMPLETE"
     ## VM disk configuration
@@ -1542,7 +1570,7 @@ foreach($v in $vmServers) {
     }
     else {
         Write-Host "Copying the base Windows VHD to the destination VHD path..." -ForegroundColor Green -NoNewline
-        Copy-Item -Path $VM_LocalizedStrings.res_0002 -Destination $vhdPath
+        Copy-Item -Path $VM_LocalizedStrings.ServerVhdPath -Destination $vhdPath
         Write-Host "COMPLETE"
         Write-Host "Removing the read-only flag on the VHD file..." -ForegroundColor Green -NoNewline
         Set-ItemProperty -Path $vhdPath -Name IsReadOnly -Value $False
@@ -1567,6 +1595,7 @@ foreach($v in $vmServers) {
     Write-Host "COMPLETE"
     Write-Host "Starting $v..." -ForegroundColor Green
     Start-VM -Name $v
+    Remove-Item C:\Temp\hosts-$timeStamp -Confirm:$False -ErrorAction Ignore
     #Remove-Item -Path $v"-VM-strings.psd1" -Force
     #vmconnect.exe $env:COMPUTERNAME $v
 }

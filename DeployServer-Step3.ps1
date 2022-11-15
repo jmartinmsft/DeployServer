@@ -1,9 +1,9 @@
 ﻿<#
-// DeployServer-Step1.ps1
-// Modified 2021/10/03
+// DeployServer-Step3.ps1
+// Modified 10 November 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.3
+// Version: v20221110.1434
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -222,16 +222,16 @@ function Reboot-FailedSetup {
     Remove-ItemProperty -Path "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce" -Name "ExchangeSetup" -Force -ErrorAction Ignore | Out-Null
     Set-ItemProperty -Path $RunOnceKey -Name "ExchangeSetup" -Value ('C:\Windows\System32\WindowsPowerShell\v1.0\Powershell.exe -executionPolicy Unrestricted -File C:\Temp\DeployServer-Step3.ps1 -ServerName ' + $ServerName)
     $WinLogonKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
-    Set-ItemProperty -Path $WinLogonKey -Name "DefaultUserName" -Value $ExchangeInstall_LocalizedStrings.res_0013
-    if($ExchangeInstall_LocalizedStrings.res_0012.Length -eq 0) {
+    Set-ItemProperty -Path $WinLogonKey -Name "DefaultUserName" -Value $ExchangeInstall_LocalizedStrings.Username
+    if($ExchangeInstall_LocalizedStrings.DomainPassword.Length -eq 0) {
         Set-ItemProperty -Path $WinLogonKey -Name "DefaultPassword" -Value $UserCreds_LocalizedStrings.res_0001
     }
     else {
-        Set-ItemProperty -Path $WinLogonKey -Name "DefaultPassword" -Value $ExchangeInstall_LocalizedStrings.res_0012
+        Set-ItemProperty -Path $WinLogonKey -Name "DefaultPassword" -Value $ExchangeInstall_LocalizedStrings.DomainPassword
     }
     Set-ItemProperty -Path $WinLogonKey -Name "AutoAdminLogon" -Value "1" 
     Set-ItemProperty -Path $WinLogonKey -Name "AutoLogonCount" -Value "5" 
-    Set-ItemProperty -Path $WinLogonKey -Name "DefaultDomainName" -Value $ExchangeInstall_LocalizedStrings.res_0014
+    Set-ItemProperty -Path $WinLogonKey -Name "DefaultDomainName" -Value $ExchangeInstall_LocalizedStrings.Domain
     Restart-Computer
 }
 Start-Transcript -Path C:\Temp\DeployServer-Log.txt -Append -NoClobber | Out-Null
@@ -254,21 +254,21 @@ $RunOnceKey = "HKLM:\Software\Microsoft\Windows\CurrentVersion\RunOnce"
 $WinLogonKey = "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon"
 Set-ItemProperty -Path $WinLogonKey -Name "AutoAdminLogon" -Value "1" 
 Set-ItemProperty -Path $WinLogonKey -Name "AutoLogonCount" -Value "5" 
-Set-ItemProperty -Path $WinLogonKey -Name "DefaultUserName" -Value $ExchangeInstall_LocalizedStrings.res_0013
-Set-ItemProperty -Path $WinLogonKey -Name "DefaultDomainName" -Value $ExchangeInstall_LocalizedStrings.res_0014
-if($ExchangeInstall_LocalizedStrings.res_0012.Length -eq 0) {
+Set-ItemProperty -Path $WinLogonKey -Name "DefaultUserName" -Value $ExchangeInstall_LocalizedStrings.Username
+Set-ItemProperty -Path $WinLogonKey -Name "DefaultDomainName" -Value $ExchangeInstall_LocalizedStrings.Domain
+if($ExchangeInstall_LocalizedStrings.DomainPassword.Length -eq 0) {
     Set-ItemProperty -Path $WinLogonKey -Name "DefaultPassword" -Value $UserCreds_LocalizedStrings.res_0001
 }
 else {
-    Set-ItemProperty -Path $WinLogonKey -Name "DefaultPassword" -Value $ExchangeInstall_LocalizedStrings.res_0012
+    Set-ItemProperty -Path $WinLogonKey -Name "DefaultPassword" -Value $ExchangeInstall_LocalizedStrings.DomainPassword
 }
 Write-Host "COMPLETE"
 ## Verify that the domain can be resolved before continuing
 Write-Host "Verifying the domain can be resolved..." -ForegroundColor Green -NoNewline
-$domain = $ExchangeInstall_LocalizedStrings.res_0014
+$domain = $ExchangeInstall_LocalizedStrings.Domain
 $serverReady = $false
 while($serverReady -eq $false) {
-    $domainController = (Resolve-DnsName $domain -Type SRV -Server $ExchangeInstall_LocalizedStrings.res_0031 -ErrorAction Ignore).PrimaryServer
+    $domainController = (Resolve-DnsName $domain -Type SRV -Server $ExchangeInstall_LocalizedStrings.DomainController -ErrorAction Ignore).PrimaryServer
     if($domainController -like "*$domain") { $serverReady = $true }
     Start-Sleep -Seconds 5
 }
@@ -284,7 +284,7 @@ while($adDomain.Length -lt 1) {
     Start-Sleep -Seconds 10
 }
 ## Either install Exchange or promote to a domain controller
-switch($ExchangeInstall_LocalizedStrings.res_0099) {
+switch($ExchangeInstall_LocalizedStrings.ServerType) {
     0 { ## Check if server is pending a reboot before attempting to install Exchange
         Write-Host "Checking if there is a pending reboot prior to installing Exchange..." -ForegroundColor Green -NoNewline
         if(Test-PendingReboot) {
@@ -293,7 +293,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         Write-Host "COMPLETE"
         Set-ItemProperty -Path $RunOnceKey -Name "ExchangeSetup" -Value ('C:\Windows\System32\WindowsPowerShell\v1.0\Powershell.exe -executionPolicy Unrestricted -File C:\Temp\DeployServer-Step4.ps1')
         ## For greenfield deployments, wait for the first server to be ready
-        if($ExchangeInstall_LocalizedStrings.res_0028 -eq 1 -and $ExchangeInstall_LocalizedStrings.res_0029.Length -eq 0) {
+        if($ExchangeInstall_LocalizedStrings.ExchangeOrgMissing -eq 1 -and $ExchangeInstall_LocalizedStrings.ExchangeOrgName.Length -eq 0) {
             Write-Host "Waiting for Active Directory replication..." -ForegroundColor Green -NoNewline
             ## Synchronize Active Directory to ensure Exchange is not waiting on replication
             Force-ADSync $domainController $adDomain
@@ -333,11 +333,11 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         }
         Write-Host "COMPLETE"
         ## Check if the previous versions of Exchange are installed
-        if($ExchangeInstall_LocalizedStrings.res_0034 -ne $null) {
+        if($ExchangeInstall_LocalizedStrings.ExchangeVersionCheck -ne $null) {
             Write-Host "Checking for previous versions of Exchange in the organization..." -ForegroundColor Green -NoNewline
             $exReady = $false
             ## Get the version of Exchange that must be present
-            [int]$checkForVersion = $ExchangeInstall_LocalizedStrings.res_0034
+            [int]$checkForVersion = $ExchangeInstall_LocalizedStrings.ExchangeVersionCheck
             while($exReady -eq $false) {
                 ## Get a list of Exchange servers
                 $exchServers = Get-ADObject -LDAPFilter "(&(objectClass=msExchExchangeServer)(serverRole=*))" -SearchBase $exchContainer -SearchScope Subtree -Properties serialNumber -ErrorAction Ignore
@@ -364,7 +364,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             ## Update the setup command for September 2021 CU releases
             $setupCommand = (Select-String -Path $file -Pattern setup).Line
             $setupFile = $setupCommand.Substring(0, $setupCommand.IndexOf(" "))
-            switch ($ExchangeInstall_LocalizedStrings.res_0003) { ## Checking the version of Exchange being installed
+            switch ($ExchangeInstall_LocalizedStrings.ExchangeVersion) { ## Checking the version of Exchange being installed
                 1 { 
                     if((Get-Item $setupFile -ErrorAction Ignore).VersionInfo.ProductVersion -ge "15.01.2375.007") {
                         (Get-Content $file) -replace "/IAcceptExchangeServerLicenseTerms", "/IAcceptExchangeServerLicenseTerms_DiagnosticDataOFF" | Set-Content $file
@@ -383,7 +383,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                 Write-Warning "Exchange setup failed"
                 Write-Host "Attempting to synchronize Active Directory..." -ForegroundColor Green
                 Start-Sleep -Seconds 10
-                $domainController = $ExchangeInstall_LocalizedStrings.res_0031
+                $domainController = $ExchangeInstall_LocalizedStrings.DomainController
                 $adDomain = (Get-ADDomain -ErrorAction Ignore).DistinguishedName
                 Force-ADSync $domainController $adDomain
                 Reboot-FailedSetup
@@ -412,22 +412,22 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                 exit
             }
         }
-        $ipSubnet = (Get-IPv4Subnet -IPAddress $ExchangeInstall_LocalizedStrings.res_0007 -PrefixLength $ExchangeInstall_LocalizedStrings.res_0008)+"/"+$ExchangeInstall_LocalizedStrings.res_0008
-        if(!(Get-ADReplicationSite -ErrorAction Ignore) -notmatch $ExchangeInstall_LocalizedStrings.res_0106) { #-and (Get-ADReplicationSite).Name -notmatch "Default-First-Site-Name" ) {
+        $ipSubnet = (Get-IPv4Subnet -IPAddress $ExchangeInstall_LocalizedStrings.IpAddress -PrefixLength $ExchangeInstall_LocalizedStrings.SubnetMask)+"/"+$ExchangeInstall_LocalizedStrings.SubnetMask
+        if(!(Get-ADReplicationSite -ErrorAction Ignore) -notmatch $ExchangeInstall_LocalizedStrings.AdSiteName) { #-and (Get-ADReplicationSite).Name -notmatch "Default-First-Site-Name" ) {
             ## Create a new AD site
-            Write-Host "Creating new AD Site called $ExchangeInstall_LocalizedStrings.res_0106..." -ForegroundColor Green -NoNewline
-            New-ADReplicationSite -Name $ExchangeInstall_LocalizedStrings.res_0106 -ErrorAction Ignore
+            Write-Host "Creating new AD Site called $ExchangeInstall_LocalizedStrings.AdSiteName..." -ForegroundColor Green -NoNewline
+            New-ADReplicationSite -Name $ExchangeInstall_LocalizedStrings.AdSiteName -ErrorAction Ignore
             Write-Host "COMPLETE"
             ## Create a new subnet and add the new site
             Write-Host "Creating a new subnet for the AD site..." -ForegroundColor Green -NoNewline
-            New-ADReplicationSubnet -Name $ipSubnet -Site $ExchangeInstall_LocalizedStrings.res_0106 -ErrorAction Ignore
+            New-ADReplicationSubnet -Name $ipSubnet -Site $ExchangeInstall_LocalizedStrings.AdSiteName -ErrorAction Ignore
             Write-Host "COMPLETE"
             ## Add the new site to the replication site link
-            Get-ADReplicationSiteLink -Filter * | Set-ADReplicationSiteLink -SitesIncluded @{Add=$ExchangeInstall_LocalizedStrings.res_0106}  -ErrorAction Ignore
+            Get-ADReplicationSiteLink -Filter * | Set-ADReplicationSiteLink -SitesIncluded @{Add=$ExchangeInstall_LocalizedStrings.AdSiteName}  -ErrorAction Ignore
         }
-        [securestring]$adSafeModePwd = $ExchangeInstall_LocalizedStrings.res_0105 | ConvertTo-SecureString -AsPlainText -Force
+        [securestring]$adSafeModePwd = $ExchangeInstall_LocalizedStrings.AdSafeModePassword | ConvertTo-SecureString -AsPlainText -Force
         $dcReady = $false
-        $sourceDC = $ExchangeInstall_LocalizedStrings.res_0031
+        $sourceDC = $ExchangeInstall_LocalizedStrings.DomainController
         if($sourceDC -notlike "*$domain") {
             $sourceDC = $sourceDC+"."+$domain
         }
@@ -441,7 +441,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         Write-Host "Promoting this server to a domain controller..." -ForegroundColor Green -NoNewline
         $dcSuccess = $false
         while($dcSuccess -eq $false) {
-            $dcInstall = (Install-ADDSDomainController -InstallDns -DomainName $domain -SafeModeAdministratorPassword $adSafeModePwd -SkipPreChecks -AllowDomainControllerReinstall -NoRebootOnCompletion -SiteName $ExchangeInstall_LocalizedStrings.res_0106 -Confirm:$False)
+            $dcInstall = (Install-ADDSDomainController -InstallDns -DomainName $domain -SafeModeAdministratorPassword $adSafeModePwd -SkipPreChecks -AllowDomainControllerReinstall -NoRebootOnCompletion -SiteName $ExchangeInstall_LocalizedStrings.AdSiteName -Confirm:$False)
             $installCheck = Select-String -InputObject $dcInstall -Pattern "The operation failed"
                 if($installCheck -like "*The operation failed*" -or $installCheck -like "*Exception*") {
                     Write-Warning "DC promo failed for $ServerName"
@@ -464,37 +464,3 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         Restart-Computer
     }
 }
-
-# SIG # Begin signature block
-# MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
-# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCDs5kJGs2foQTlh
-# /Z6F80Va/tsorCRBXDML3sH95s59P6CCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
-# u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
-# cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
-# BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
-# ggEPADCCAQoCggEBAMSWhFMKzV8qMywbj1H6lg4h+cvR9CtxmQ1J3V9uf9+R2d9p
-# laoDqCNS+q8wz+t+QffvmN2YbcsHrXp6O7bF+xYjuPtIurv8wM69RB/Uy1xvsUKD
-# L/ZDQZ0zewMDLb5Nma7IYJCPYelHiSeO0jsyLXTnaOG0Rq633SUkuPv+C3N8GzVs
-# KDnxozmHGYq/fdQEv9Bpci2DkRTtnHvuIreeqsg4lICeTIny8jMY4yC6caQkamzp
-# GcJWWO0YZlTQOaTgHoVVnSZAvdJhzxIX2wqd0/VaVIbpN0HcPKtMrgXv0O2Bl4Lo
-# tmZR7za7H6hamxaPYQHHyReFs2xM7hlVVWhnfpECAwEAAaNoMGYwDgYDVR0PAQH/
-# BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMDMCAGA1UdEQQZMBeCFWptYXJ0aW5A
-# bWljcm9zb2Z0LmNvbTAdBgNVHQ4EFgQUCB04A8myETdoRJU9zsScvFiRGYkwDQYJ
-# KoZIhvcNAQELBQADggEBAEjsxpuXMBD72jWyft6pTxnOiTtzYykYjLTsh5cRQffc
-# z0sz2y+jL2WxUuiwyqvzIEUjTd/BnCicqFC5WGT3UabGbGBEU5l8vDuXiNrnDf8j
-# zZ3YXF0GLZkqYIZ7lUk7MulNbXFHxDwMFD0E7qNI+IfU4uaBllsQueUV2NPx4uHZ
-# cqtX4ljWuC2+BNh09F4RqtYnocDwJn3W2gdQEAv1OQ3L6cG6N1MWMyHGq0SHQCLq
-# QzAn5DpXfzCBAePRcquoAooSJBfZx1E6JeV26yw2sSnzGUz6UMRWERGPeECSTz3r
-# 8bn3HwYoYcuV+3I7LzEiXOdg3dvXaMf69d13UhMMV1sxggHdMIIB2QIBATA0MCAx
-# HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
-# NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
-# AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
-# CSqGSIb3DQEJBDEiBCAOStyu+qi2foybyNnwmfUK2449uim5EPz82sbQKJIJ9jAN
-# BgkqhkiG9w0BAQEFAASCAQBiP1lWfrPfNLgFWdgOIVMm62yP5Q71kNZngaeTn+7w
-# G0jdiXNW5eGgow5VyBskOqvmgytqesI6XTAb45bASFaSk+n7oaRB4bf0J43e9ovg
-# t1orbrIg8j0i7GbabJaiO1etqT4usS9UknOz7DRmRMdR6PfKU/WAkeuNv7XasurB
-# ngBZP24Wrt7dwZK/CT3DGCdkREmUoGMAvlh1AqYIJto7HGrFN+jiZAiF2Xm7b8MT
-# 1aoMWM2p5UsT3MsfMNRJPr7CRDkMyQQxzOEQEcPIr+y7uGosXuAkepm9N0kInMZb
-# JGpyIDez5VW5GFpJy2IZ16qc6WkewkLjXQdtOIAb7xqx
-# SIG # End signature block

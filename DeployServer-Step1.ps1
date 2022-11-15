@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step1.ps1
-// Modified 2021/10/26
+// Modified 10 November 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v1.2
+// Version: v20221110.1433
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -45,12 +45,12 @@ function Check-ServerCore {
 }
 function Set-IPConfig{
     ## Configure the static IP address information on the network adapter
-    New-NetIPAddress -InterfaceIndex $interfaceIndexId -IPAddress $ExchangeInstall_LocalizedStrings.res_0007 -DefaultGateway $ExchangeInstall_LocalizedStrings.res_0009 -PrefixLength $ExchangeInstall_LocalizedStrings.res_0008 | Out-Null
+    New-NetIPAddress -InterfaceIndex $interfaceIndexId -IPAddress $ExchangeInstall_LocalizedStrings.IpAddress -DefaultGateway $ExchangeInstall_LocalizedStrings.Gateway -PrefixLength $ExchangeInstall_LocalizedStrings.SubnetMask | Out-Null
     if($SecondaryDNS -eq 0) {
-        Set-DnsClientServerAddress -InterfaceIndex $interfaceIndexId -ServerAddresses $ExchangeInstall_LocalizedStrings.res_0010 | Out-Null
+        Set-DnsClientServerAddress -InterfaceIndex $interfaceIndexId -ServerAddresses $ExchangeInstall_LocalizedStrings.PrimaryDns | Out-Null
     }
     else {
-        Set-DnsClientServerAddress -InterfaceIndex $interfaceIndexId -ServerAddresses $ExchangeInstall_LocalizedStrings.res_0010,$ExchangeInstall_LocalizedStrings.res_0011 | Out-Null
+        Set-DnsClientServerAddress -InterfaceIndex $interfaceIndexId -ServerAddresses $ExchangeInstall_LocalizedStrings.PrimaryDns,$ExchangeInstall_LocalizedStrings.SecondaryDns | Out-Null
     }
 }
 function Check-ExchangeVersion ($Message=”Please mount the Exchange ISO and then press any key to continue...”) {
@@ -98,7 +98,7 @@ Set-ItemProperty -Path $WinLogonKey -Name "DefaultUserName" -Value $UserCreds_Lo
 Set-ItemProperty -Path $WinLogonKey -Name "DefaultPassword" -Value $UserCreds_LocalizedStrings.res_0001
 Write-Host "COMPLETE"
 ## Check if ipV6 should be disabled
-if($ExchangeInstall_LocalizedStrings.res_0006 -eq 0) {
+if($ExchangeInstall_LocalizedStrings.IpV6 -eq 0) {
     Write-Host "Disabling IPv6..." -ForegroundColor Green -NoNewline
     New-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip6\Parameters\ -Name DisabledComponents -Value "0xff" -PropertyType DWORD -ErrorAction SilentlyContinue | Out-Null
     Write-Host "COMPLETE"
@@ -106,7 +106,7 @@ if($ExchangeInstall_LocalizedStrings.res_0006 -eq 0) {
 ## Assign the IP address to the server and DNS servers
 ## Check if DHCP was selected
 Write-Host "Assigning IP address..." -ForegroundColor Green -NoNewline
-if($ExchangeInstall_LocalizedStrings.res_0026 -eq 1) { 
+if($ExchangeInstall_LocalizedStrings.EnableDhcp -eq 1) { 
     $interface = Get-NetIPInterface | Where { $_.ConnectionState -eq "Connected" -and $_.AddressFamily -eq "IPv4"  -and $_.InterfaceAlias -notlike "*Loopback*"}
     $interface | Remove-NetRoute -AddressFamily IPv4 -Confirm:$False -ErrorAction Ignore
     $interface | Set-NetIPInterface -Dhcp Enabled
@@ -114,12 +114,12 @@ if($ExchangeInstall_LocalizedStrings.res_0026 -eq 1) {
 }
 else {
     
-    New-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration).InterfaceIndex -IPAddress $ExchangeInstall_LocalizedStrings.res_0007 -DefaultGateway $ExchangeInstall_LocalizedStrings.res_0009 -PrefixLength $ExchangeInstall_LocalizedStrings.res_0008 | Out-Null
-    if($ExchangeInstall_LocalizedStrings.res_0011.Length -lt 1) {
-        Set-DnsClientServerAddress -InterfaceIndex (Get-NetIPConfiguration).InterfaceIndex -ServerAddresses $ExchangeInstall_LocalizedStrings.res_0010 | Out-Null
+    New-NetIPAddress -InterfaceIndex (Get-NetIPConfiguration).InterfaceIndex -IPAddress $ExchangeInstall_LocalizedStrings.IpAddress -DefaultGateway $ExchangeInstall_LocalizedStrings.Gateway -PrefixLength $ExchangeInstall_LocalizedStrings.SubnetMask | Out-Null
+    if($ExchangeInstall_LocalizedStrings.SecondaryDns.Length -lt 1) {
+        Set-DnsClientServerAddress -InterfaceIndex (Get-NetIPConfiguration).InterfaceIndex -ServerAddresses $ExchangeInstall_LocalizedStrings.PrimaryDns | Out-Null
     }
     else {
-        Set-DnsClientServerAddress -InterfaceIndex (Get-NetIPConfiguration).InterfaceIndex -ServerAddresses $ExchangeInstall_LocalizedStrings.res_0010,$ExchangeInstall_LocalizedStrings.res_0011 | Out-Null
+        Set-DnsClientServerAddress -InterfaceIndex (Get-NetIPConfiguration).InterfaceIndex -ServerAddresses $ExchangeInstall_LocalizedStrings.PrimaryDns,$ExchangeInstall_LocalizedStrings.SecondaryDns | Out-Null
         }
 }
 Write-Host "COMPLETE"
@@ -134,15 +134,15 @@ if((Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
     Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Active Setup\Installed Components\{A509B1A7-37EF-4b3f-8CFC-4F3A74704073}" -Name "IsInstalled" -Value 0
     Write-Host "COMPLETE"
 }
-$domainController = $ExchangeInstall_LocalizedStrings.res_0031
+$domainController = $ExchangeInstall_LocalizedStrings.DomainController
 ## Install ADDS if the server is a domain controller
-if($ExchangeInstall_LocalizedStrings.res_0099 -eq 1) {
+if($ExchangeInstall_LocalizedStrings.ServerType -eq 1) {
     Write-Host "Installing the ADDS Windows feature..." -ForegroundColor Green -NoNewline
     Install-WindowsFeature AD-Domain-Services -IncludeManagementTools
     Write-Host "COMPLETE"
 }
 else {
-    if($ExchangeInstall_LocalizedStrings.res_0004 -eq 1) {
+    if($ExchangeInstall_LocalizedStrings.ExchangeInstallType -eq 1) {
         ## First we need to bring the additional disks online
         Get-Disk | Where { $_.OperationalStatus -eq "Offline" } | ForEach-Object {
             Set-Disk -Number $_.Number -IsReadOnly:$False
@@ -166,7 +166,7 @@ else {
         Check-ExchangeVersion
     }
     ## Verify the correct version of Exchange
-    $exResult = $ExchangeInstall_LocalizedStrings.res_0003
+    $exResult = $ExchangeInstall_LocalizedStrings.ExchangeVersion
     $exVersion = (Get-Item -Path $exInstallPath\Setup.exe).VersionInfo.FileVersion
     switch ($exResult) {
         2 { while($exVersion -notlike "*15.02*") { $exVersion = Check-ExchangeVersion } }
@@ -177,19 +177,19 @@ else {
     Write-Host "Creating the Exchange setup script..." -ForegroundColor Green -NoNewline
     $installBat = "c:\Temp\exSetup.bat"
     New-Item $installBat -ItemType File -ErrorAction SilentlyContinue | Out-Null
-    switch ($ExchangeInstall_LocalizedStrings.res_0004) { ## Checking whether is install is new or recover
+    switch ($ExchangeInstall_LocalizedStrings.ExchangeInstallType) { ## Checking whether is install is new or recover
         0 { switch ($exResult) { ## Checking the version of Exchange to install
-                2 { switch ($ExchangeInstall_LocalizedStrings.res_0005) { ## Checking the roles to install for 2019
+                2 { switch ($ExchangeInstall_LocalizedStrings.ExchangeRole) { ## Checking the roles to install for 2019
                         0 { $exSetupLine = ($exInstallPath + '\setup.exe /mode:install /roles:mb /IAcceptExchangeServerLicenseTerms') }
                         1 { $exSetupLine =  ($exInstallPath + '\setup.exe /mode:install /roles:et /IAcceptExchangeServerLicenseTerms') }
                     }
                 }
-                1 { switch ($ExchangeInstall_LocalizedStrings.res_0005) { ## Checking the roles to install for 2016
+                1 { switch ($ExchangeInstall_LocalizedStrings.ExchangeRole) { ## Checking the roles to install for 2016
                         0 { $exSetupLine =  ($exInstallPath + '\setup.exe /mode:install /roles:mb /IAcceptExchangeServerLicenseTerms') }
                         1 { $exSetupLine =  ($exInstallPath + '\setup.exe /mode:install /roles:et /IAcceptExchangeServerLicenseTerms') }
                     }
                 }
-                0 { switch ($ExchangeInstall_LocalizedStrings.res_0005) { ## Checking the roles to install for 2013
+                0 { switch ($ExchangeInstall_LocalizedStrings.ExchangeRole) { ## Checking the roles to install for 2013
                         0 { $exSetupLine =  ($exInstallPath + '\setup.exe /mode:install /roles:mb,ca /IAcceptExchangeServerLicenseTerms') }
                         1 { $exSetupLine =  ($exInstallPath + '\setup.exe /mode:install /roles:mb /IAcceptExchangeServerLicenseTerms') }
                         2 { $exSetupLine =  ($exInstallPath + '\setup.exe /mode:install /roles:ca /IAcceptExchangeServerLicenseTerms') }
@@ -197,8 +197,8 @@ else {
                     }
                 }
             }
-            if($ExchangeInstall_LocalizedStrings.res_0028 -eq 1 -and $ExchangeInstall_LocalizedStrings.res_0029 -ne $null ) {
-                $exSetupLine = $exSetupLine + " /OrganizationName:" + $ExchangeInstall_LocalizedStrings.res_0029
+            if($ExchangeInstall_LocalizedStrings.ExchangeOrgMissing -eq 1 -and $ExchangeInstall_LocalizedStrings.ExchangeOrgName -ne $null ) {
+                $exSetupLine = $exSetupLine + " /OrganizationName:" + $ExchangeInstall_LocalizedStrings.ExchangeOrgName
             }
             Add-Content -Path $installBat -Value $exSetupLine
         }
@@ -207,7 +207,7 @@ else {
     Write-Host "COMPLETE"
     ## Check for and install Windows prequisite roles and features
     Write-Host "Installing required Windows features for Exchange..." -ForegroundColor Green -NoNewline
-    switch ($ExchangeInstall_LocalizedStrings.res_0003) { ## Checking the version of Exchange
+    switch ($ExchangeInstall_LocalizedStrings.ExchangeVersion) { ## Checking the version of Exchange
         0 { Install-WindowsFeature Server-Media-Foundation, NET-Framework-45-Features, RPC-over-HTTP-proxy, RSAT-Clustering, RSAT-Clustering-CmdInterface, RSAT-Clustering-Mgmt, RSAT-Clustering-PowerShell, WAS-Process-Model, Web-Asp-Net45, Web-Basic-Auth, Web-Client-Auth, Web-Digest-Auth, Web-Dir-Browsing, Web-Dyn-Compression, Web-Http-Errors, Web-Http-Logging, Web-Http-Redirect, Web-Http-Tracing, Web-ISAPI-Ext, Web-ISAPI-Filter, Web-Lgcy-Mgmt-Console, Web-Metabase, Web-Mgmt-Console, Web-Mgmt-Service, Web-Net-Ext45, Web-Request-Monitor, Web-Server, Web-Stat-Compression, Web-Static-Content, Web-Windows-Auth, Web-WMI, Windows-Identity-Foundation, Failover-Clustering, RSAT-ADDS }
         1 { Install-WindowsFeature NET-Framework-45-Features, Server-Media-Foundation, RPC-over-HTTP-proxy, RSAT-Clustering, RSAT-Clustering-CmdInterface, RSAT-Clustering-Mgmt, RSAT-Clustering-PowerShell, WAS-Process-Model, Web-Asp-Net45, Web-Basic-Auth, Web-Client-Auth, Web-Digest-Auth, Web-Dir-Browsing, Web-Dyn-Compression, Web-Http-Errors, Web-Http-Logging, Web-Http-Redirect, Web-Http-Tracing, Web-ISAPI-Ext, Web-ISAPI-Filter, Web-Lgcy-Mgmt-Console, Web-Metabase, Web-Mgmt-Console, Web-Mgmt-Service, Web-Net-Ext45, Web-Request-Monitor, Web-Server, Web-Stat-Compression, Web-Static-Content, Web-Windows-Auth, Web-WMI, Windows-Identity-Foundation, Failover-Clustering,RSAT-ADDS }
         2 { if(Check-ServerCore) {Install-WindowsFeature Server-Media-Foundation, NET-Framework-45-Features, RPC-over-HTTP-proxy, RSAT-Clustering, RSAT-Clustering-CmdInterface, RSAT-Clustering-PowerShell, WAS-Process-Model, Web-Asp-Net45, Web-Basic-Auth, Web-Client-Auth, Web-Digest-Auth, Web-Dir-Browsing, Web-Dyn-Compression, Web-Http-Errors, Web-Http-Logging, Web-Http-Redirect, Web-Http-Tracing, Web-ISAPI-Ext, Web-ISAPI-Filter, Web-Metabase, Web-Mgmt-Service, Web-Net-Ext45, Web-Request-Monitor, Web-Server, Web-Stat-Compression, Web-Static-Content, Web-Windows-Auth, Web-WMI, Failover-Clustering, RSAT-ADDS}
@@ -219,37 +219,3 @@ else {
 Write-Host "Renaming the computer account to $ServerName..." -ForegroundColor Yellow
 Start-Sleep -Seconds 3
 Rename-Computer -NewName $ServerName -Restart
-
-# SIG # Begin signature block
-# MIIFvQYJKoZIhvcNAQcCoIIFrjCCBaoCAQExDzANBglghkgBZQMEAgEFADB5Bgor
-# BgEEAYI3AgEEoGswaTA0BgorBgEEAYI3AgEeMCYCAwEAAAQQH8w7YFlLCE63JNLG
-# KX7zUQIBAAIBAAIBAAIBAAIBADAxMA0GCWCGSAFlAwQCAQUABCAnOunL2zSIblTW
-# 4xvhTWvhnKWIMHOo8LEYAHUOEIA/faCCAzYwggMyMIICGqADAgECAhA8ATOaNhKD
-# u0LkWaETEtc0MA0GCSqGSIb3DQEBCwUAMCAxHjAcBgNVBAMMFWptYXJ0aW5AbWlj
-# cm9zb2Z0LmNvbTAeFw0yMTAzMjYxNjU5MDdaFw0yMjAzMjYxNzE5MDdaMCAxHjAc
-# BgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbTCCASIwDQYJKoZIhvcNAQEBBQAD
-# ggEPADCCAQoCggEBAMSWhFMKzV8qMywbj1H6lg4h+cvR9CtxmQ1J3V9uf9+R2d9p
-# laoDqCNS+q8wz+t+QffvmN2YbcsHrXp6O7bF+xYjuPtIurv8wM69RB/Uy1xvsUKD
-# L/ZDQZ0zewMDLb5Nma7IYJCPYelHiSeO0jsyLXTnaOG0Rq633SUkuPv+C3N8GzVs
-# KDnxozmHGYq/fdQEv9Bpci2DkRTtnHvuIreeqsg4lICeTIny8jMY4yC6caQkamzp
-# GcJWWO0YZlTQOaTgHoVVnSZAvdJhzxIX2wqd0/VaVIbpN0HcPKtMrgXv0O2Bl4Lo
-# tmZR7za7H6hamxaPYQHHyReFs2xM7hlVVWhnfpECAwEAAaNoMGYwDgYDVR0PAQH/
-# BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMDMCAGA1UdEQQZMBeCFWptYXJ0aW5A
-# bWljcm9zb2Z0LmNvbTAdBgNVHQ4EFgQUCB04A8myETdoRJU9zsScvFiRGYkwDQYJ
-# KoZIhvcNAQELBQADggEBAEjsxpuXMBD72jWyft6pTxnOiTtzYykYjLTsh5cRQffc
-# z0sz2y+jL2WxUuiwyqvzIEUjTd/BnCicqFC5WGT3UabGbGBEU5l8vDuXiNrnDf8j
-# zZ3YXF0GLZkqYIZ7lUk7MulNbXFHxDwMFD0E7qNI+IfU4uaBllsQueUV2NPx4uHZ
-# cqtX4ljWuC2+BNh09F4RqtYnocDwJn3W2gdQEAv1OQ3L6cG6N1MWMyHGq0SHQCLq
-# QzAn5DpXfzCBAePRcquoAooSJBfZx1E6JeV26yw2sSnzGUz6UMRWERGPeECSTz3r
-# 8bn3HwYoYcuV+3I7LzEiXOdg3dvXaMf69d13UhMMV1sxggHdMIIB2QIBATA0MCAx
-# HjAcBgNVBAMMFWptYXJ0aW5AbWljcm9zb2Z0LmNvbQIQPAEzmjYSg7tC5FmhExLX
-# NDANBglghkgBZQMEAgEFAKB8MBAGCisGAQQBgjcCAQwxAjAAMBkGCSqGSIb3DQEJ
-# AzEMBgorBgEEAYI3AgEEMBwGCisGAQQBgjcCAQsxDjAMBgorBgEEAYI3AgEVMC8G
-# CSqGSIb3DQEJBDEiBCAg04zKkSDOqUkUnZ/HumTuJM8CisMGO5T0i54we2sZ6zAN
-# BgkqhkiG9w0BAQEFAASCAQBVUDLycZDlOFM2iswdJh0aHJquFCQxA23cOYt118vO
-# F/Ts6jcF31JGknfxougG5v+RTmg1dDHJq1df9L91ek7taSFnHUC3S896JhgwzPnF
-# 32lmt+79USFzNnRU+nbZYsld3bUNRsr8A5WZCGynrjfAwVreAKEafwQWt3TqEcqe
-# 66T5ftbqGOJ8dqFag6NuK4vpBADikLJ7ewlVUzMD9+6RSYjOtngBUFuQpj1YkETB
-# 26ZMOHN9RLEdckDEMImPVAd2Waggeh82WhW0nu9gXyk5IBAj+q4bf4LcR6FfgZoQ
-# pal9NyYi8aCa5oMlZZMfgq2iBjhbabaYYw9jm09h5wR9
-# SIG # End signature block

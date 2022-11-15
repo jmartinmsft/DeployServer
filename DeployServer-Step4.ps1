@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step4.ps1
-// Modified 10 November 2022
+// Modified 15 November 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20221110.0824
+// Version: v20221115.0935
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -43,7 +43,7 @@ Start-Sleep -Seconds 2
 #endregion
 ## Functions for Exchange configuration
 function Enable-ExchangeExtendedProtection {
-    if($ExchangeInstall_LocalizedStrings.res_0003 -ne 0){
+    if($ExchangeInstall_LocalizedStrings.ExchangeVersion -ne 0){
         Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/api"
         Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/api"
     }
@@ -70,7 +70,7 @@ function Enable-ExchangeExtendedProtection {
     Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Exchange Back End/PushNotifications"
 }
 function Install-ExchSU {
-    switch($ExchangeInstall_LocalizedStrings.res_0003){
+    switch($ExchangeInstall_LocalizedStrings.ExchangeVersion){
         0 {Install-Exch2013SU}
         1 {Install-Exch2016SU}
         2 {Install-Exch2019SU}
@@ -419,10 +419,10 @@ Import-LocalizedData -BindingVariable ExchangeInstall_LocalizedStrings -FileName
 Write-Host "COMPLETE"
 ## Verify that the domain can be resolved before continuing
 Write-Host "Verifying the domain can be resolved..." -ForegroundColor Green -NoNewline
-$domain = $ExchangeInstall_LocalizedStrings.res_0014
+$domain = $ExchangeInstall_LocalizedStrings.Domain
 $serverReady = $false
 while($serverReady -eq $false) {
-    $domainController = (Resolve-DnsName $domain -Type SRV -Server $ExchangeInstall_LocalizedStrings.res_0031 -ErrorAction Ignore).PrimaryServer
+    $domainController = (Resolve-DnsName $domain -Type SRV -Server $ExchangeInstall_LocalizedStrings.DomainController -ErrorAction Ignore).PrimaryServer
     if($domainController -like "*$domain") { $serverReady = $true }
     Start-Sleep -Seconds 5
 }
@@ -430,7 +430,7 @@ Write-Host "COMPLETE"
 ## Get the AD Domain
 $adDomain = (Get-ADDomain -ErrorAction Ignore).DistinguishedName
 ## Complete either the Exchange installation of the domain controller
-switch($ExchangeInstall_LocalizedStrings.res_0099) {
+switch($ExchangeInstall_LocalizedStrings.ServerType) {
     0{ ## Finalize Exchange setup
         ## Health Checker fixes
         Disable-SMB1
@@ -439,7 +439,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         Write-Host "Finalizing Exchange setup..." -ForegroundColor Green
         ## Open WinRM for future Exchange installs where the VM host is not on the same subnet
         Get-NetFirewallRule -DisplayName "Windows Remote Management (HTTP-In)" | Where {$_.Profile -eq "Public" } | Set-NetFirewallRule -RemoteAddress Any
-        if($ExchangeInstall_LocalizedStrings.res_0003 -ne 2) {
+        if($ExchangeInstall_LocalizedStrings.ExchangeVersion -ne 2) {
             #region Enable TLS 1.2
             Write-Host "Enabling TLS 1.2..." -ForegroundColor Green -NoNewline
             $RegistryPaths = @('HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.2',
@@ -602,7 +602,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         Sync-AdConfigPartition
         ## Disable Exchange diagnostic and monitoring services
         Write-Host "Disabling unwanted Exchange services for lab environment..." -ForegroundColor Green -NoNewline
-        switch ($ExchangeInstall_LocalizedStrings.res_0003) {
+        switch ($ExchangeInstall_LocalizedStrings.ExchangeVersion) {
             1 { Set-Service MSExchangeHMRecovery -StartupType Disabled }
             2 { Set-Service MSExchangeHMRecovery -StartupType Disabled }
         }
@@ -615,23 +615,23 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'LooseTruncation_MinCopiesToProtect' -Value 1 -PropertyType 'DWORD'
         CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'LooseTruncation_MinLogsToProtect' -Value 100 -PropertyType 'DWORD'
         ## Finish Exchange configuration
-        $DagName = $ExchangeInstall_LocalizedStrings.res_0001
+        $DagName = $ExchangeInstall_LocalizedStrings.DagName
         ## Updating the Exchange certificate
-        if($ExchangeInstall_LocalizedStrings.res_0002 -ne $null) {        
+        if($ExchangeInstall_LocalizedStrings.CertThumprint -ne $null) {        
             Write-Host "Importing Exchange certificate and assigning services..." -ForegroundColor Green
             $transportCert = (Get-TransportService $ServerName).InternalTransportCertificateThumbprint
             #Import-ExchangeCertificate -Server $ServerName -FileName "C:\Temp\$ServerName-Exchange.pfx" -Password (ConvertTo-SecureString -String "Pass@word1" -AsPlainText -Force) -PrivateKeyExportable:$True | Out-Null
             Import-ExchangeCertificate -Server $ServerName -FileData ([Byte[]]$(Get-Content -Path "C:\Temp\$ServerName-Exchange.pfx" -Encoding byte)) -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force) -PrivateKeyExportable:$True
-            Enable-ExchangeCertificate -Thumbprint $ExchangeInstall_LocalizedStrings.res_0002 -Services IIS,SMTP -Server $ServerName -Force
+            Enable-ExchangeCertificate -Thumbprint $ExchangeInstall_LocalizedStrings.CertThumprint -Services IIS,SMTP -Server $ServerName -Force
             ## Reset the transport service certificate back to the original self-signed certificate
             Enable-ExchangeCertificate -Thumbprint $transportCert -Services SMTP -Server $ServerName -Force
         }
         ## Configure the Exchange virtual directories
         Write-Host "Configuring virtual directories..." -ForegroundColor Green
-        switch ($ExchangeInstall_LocalizedStrings.res_0004) {
+        switch ($ExchangeInstall_LocalizedStrings.ExchangeInstallType) {
             0 {
-                $intHostname = $ExchangeInstall_LocalizedStrings.res_0020
-                $extHostname = $ExchangeInstall_LocalizedStrings.res_0021
+                $intHostname = $ExchangeInstall_LocalizedStrings.InternalHostname
+                $extHostname = $ExchangeInstall_LocalizedStrings.ExternalHostname
                 if($intHostname -ne $null -and $extHostname -ne $null) {
                     Write-Host "Updating Autodiscover URL..." -ForegroundColor Green -NoNewline
                     Get-ClientAccessServer $ServerName | Set-ClientAccessServer -AutoDiscoverServiceInternalUri https://$intHostname/Autodiscover/Autodiscover.xml
@@ -655,50 +655,50 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                     Get-OutlookAnywhere -Server $ServerName | Set-OutlookAnywhere -InternalClientAuthenticationMethod Negotiate -InternalHostname $intHostname -InternalClientsRequireSsl:$False -ExternalClientAuthenticationMethod Ntlm -ExternalClientsRequireSsl:$True -ExternalHostname $extHostname
                     Write-Host "COMPLETE"
                     Write-Host "Updating Outlook Web App virtual directory..." -ForegroundColor Green -NoNewline
-                    Get-OwaVirtualDirectory -Server $ServerName | Set-OwaVirtualDirectory -InternalUrl https://$intHostname/owa -ExternalUrl https://$extHostname/owa -LogonFormat UserName -DefaultDomain $ExchangeInstall_LocalizedStrings.res_0014
+                    Get-OwaVirtualDirectory -Server $ServerName | Set-OwaVirtualDirectory -InternalUrl https://$intHostname/owa -ExternalUrl https://$extHostname/owa -LogonFormat UserName -DefaultDomain $ExchangeInstall_LocalizedStrings.Domain
                     Write-Host "COMPLETE"
                 }
             }
             1 {
                 Write-Host "Updating Autodiscover URL..." -ForegroundColor Green -NoNewline
-                Get-ClientAccessServer $ServerName | Set-ClientAccessServer -AutoDiscoverServiceInternalUri $ExchangeInstall_LocalizedStrings.res_0038 -AutoDiscoverSiteScope $ExchangeInstall_LocalizedStrings.res_0058
+                Get-ClientAccessServer $ServerName | Set-ClientAccessServer -AutoDiscoverServiceInternalUri $ExchangeInstall_LocalizedStrings.AutodiscoverUrl -AutoDiscoverSiteScope $ExchangeInstall_LocalizedStrings.AutoDiscoverSiteScope
                 Write-Host "COMPLETE"
                 Write-Host "Updating Exchange Control Panel virtual directory..." -ForegroundColor Green -NoNewline
-                Get-EcpVirtualDirectory -Server $ServerName |Set-EcpVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.res_0039 -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0040
+                Get-EcpVirtualDirectory -Server $ServerName |Set-EcpVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.EcpInternalUrl -ExternalUrl $ExchangeInstall_LocalizedStrings.EcpExternalUrl
                 Write-Host "COMPLETE"
                 Write-Host "Updating Exchange Web Services virtual directory..." -ForegroundColor Green -NoNewline
-                Get-WebServicesVirtualDirectory -Server $ServerName | Set-WebServicesVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.res_0041 -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0042 -Force
+                Get-WebServicesVirtualDirectory -Server $ServerName | Set-WebServicesVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.EwsInternalUrl -ExternalUrl $ExchangeInstall_LocalizedStrings.EwsExternalUrl -Force
                 Write-Host "COMPLETE"
                 Write-Host "Updating Mapi over Http virtual directory..." -ForegroundColor Green -NoNewline
-                Get-MapiVirtualDirectory -Server $ServerName | Set-MapiVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.res_0043 -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0044
+                Get-MapiVirtualDirectory -Server $ServerName | Set-MapiVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.MapiInternalUrl -ExternalUrl $ExchangeInstall_LocalizedStrings.MapiExternalUrl
                 Write-Host "COMPLETE"
                 Write-Host "Updating Exchange ActiveSync virtual directory..." -ForegroundColor Green -NoNewline
-                Get-ActiveSyncVirtualDirectory -Server $ServerName | Set-ActiveSyncVirtualDirectory -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0045
+                Get-ActiveSyncVirtualDirectory -Server $ServerName | Set-ActiveSyncVirtualDirectory -ExternalUrl $ExchangeInstall_LocalizedStrings.EasExternalUrl
                 Write-Host "COMPLETE"
                 Write-Host "Updating Offline Address Book virtual directory..." -ForegroundColor Green -NoNewline
-                Get-OabVirtualDirectory -Server $ServerName | Set-OabVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.res_0046 -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0047
+                Get-OabVirtualDirectory -Server $ServerName | Set-OabVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.OabInternalUrl -ExternalUrl $ExchangeInstall_LocalizedStrings.OabExternalUrl
                 Write-Host "COMPLETE"
                 Write-Host "Updating Outlook Anywhere settings..." -ForegroundColor Green -NoNewline
-                if($ExchangeInstall_LocalizedStrings.res_0049 -eq "True") {[bool]$InternalAuth = $True}
+                if($ExchangeInstall_LocalizedStrings.OutlookAnywhereInternalSsl -eq "True") {[bool]$InternalAuth = $True}
                 else {[bool]$InternalAuth = $false}
-                if($ExchangeInstall_LocalizedStrings.res_0052 -eq "True") {[bool]$ExternalAuth = $True}
+                if($ExchangeInstall_LocalizedStrings.OutlookAnywhereExternalSsl -eq "True") {[bool]$ExternalAuth = $True}
                 else {[bool]$ExternalAuth = $false}
-                Get-OutlookAnywhere -Server $ServerName | Set-OutlookAnywhere -InternalClientAuthenticationMethod $ExchangeInstall_LocalizedStrings.res_0050 -InternalHostname $ExchangeInstall_LocalizedStrings.res_0048 -InternalClientsRequireSsl $InternalAuth -ExternalClientAuthenticationMethod $ExchangeInstall_LocalizedStrings.res_0053 -ExternalClientsRequireSsl $ExternalAuth -ExternalHostname $ExchangeInstall_LocalizedStrings.res_0051
+                Get-OutlookAnywhere -Server $ServerName | Set-OutlookAnywhere -InternalClientAuthenticationMethod $ExchangeInstall_LocalizedStrings.OutlookAnywhereInternalAuth -InternalHostname $ExchangeInstall_LocalizedStrings.OutlookAnywhereInternalHostname -InternalClientsRequireSsl $InternalAuth -ExternalClientAuthenticationMethod $ExchangeInstall_LocalizedStrings.OutlookAnywhereExternalAuth -ExternalClientsRequireSsl $ExternalAuth -ExternalHostname $ExchangeInstall_LocalizedStrings.OutlookAnywhereExternalHostname
                 Write-Host "COMPLETE"
                 Write-Host "Updating Outlook Web App virtual directory..." -ForegroundColor Green -NoNewline
-                Get-OwaVirtualDirectory -Server $ServerName | Set-OwaVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.res_0054 -ExternalUrl $ExchangeInstall_LocalizedStrings.res_0055 -LogonFormat $ExchangeInstall_LocalizedStrings.res_0056 -DefaultDomain $ExchangeInstall_LocalizedStrings.res_0057
+                Get-OwaVirtualDirectory -Server $ServerName | Set-OwaVirtualDirectory -InternalUrl $ExchangeInstall_LocalizedStrings.OwaInternalUrl -ExternalUrl $ExchangeInstall_LocalizedStrings.OwaExternalUrl -LogonFormat $ExchangeInstall_LocalizedStrings.OwaLogonFormat -DefaultDomain $ExchangeInstall_LocalizedStrings.OwaDefaultDomain
                 Write-Host "COMPLETE"
             }
         }
         ## Check whether to create a new DAG or to end the script
-        switch ($ExchangeInstall_LocalizedStrings.res_0004) { ## Checking new or restore
-            0 { switch ($ExchangeInstall_LocalizedStrings.res_0015) { ## Checking if existing or new DAG
+        switch ($ExchangeInstall_LocalizedStrings.ExchangeInstallType) { ## Checking new or restore
+            0 { switch ($ExchangeInstall_LocalizedStrings.DagResult) { ## Checking if existing or new DAG
                     0 { }## Add the Exchange server to the database availability group
                     1 { ## Creating a new Database Availability Group
                         Write-Host "Creating the new Database Availability group named $DagName..." -ForegroundColor Green -NoNewline
                         ## Determine if there is an administrative access point or not
-                        if($ExchangeInstall_LocalizedStrings.res_0032 -eq 0) {
-                            New-DatabaseAvailabilityGroup -Name $DagName -WitnessServer $ExchangeInstall_LocalizedStrings.res_0018 -WitnessDirectory $ExchangeInstall_LocalizedStrings.res_0019 -DatabaseAvailabilityGroupIpAddresses ([System.Net.IPAddress]::None) | Out-Null                              
+                        if($ExchangeInstall_LocalizedStrings.DagType -eq 0) {
+                            New-DatabaseAvailabilityGroup -Name $DagName -WitnessServer $ExchangeInstall_LocalizedStrings.WitnessServer -WitnessDirectory $ExchangeInstall_LocalizedStrings.WitnessDirectory -DatabaseAvailabilityGroupIpAddresses ([System.Net.IPAddress]::None) | Out-Null                              
                             Write-Host "COMPLETE"
                         }
                         else {
@@ -706,15 +706,15 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                             Prepare-DatabaseAvailabilityGroup
                             Sync-ADDirectoryPartition
                             ## Get the IP addresses for the DAG and then create the DAG
-                            $dagIPs = $ExchangeInstall_LocalizedStrings.res_0033.Split(" ")
+                            $dagIPs = $ExchangeInstall_LocalizedStrings.DagIpAddress.Split(" ")
                             $dagIPs | ForEach-Object { [IPAddress]$_.Trim() } | Out-Null
-                            New-DatabaseAvailabilityGroup -Name $DagName -WitnessServer $ExchangeInstall_LocalizedStrings.res_0018 -WitnessDirectory $ExchangeInstall_LocalizedStrings.res_0019 -DatabaseAvailabilityGroupIpAddresses $dagIPs | Out-Null                              
+                            New-DatabaseAvailabilityGroup -Name $DagName -WitnessServer $ExchangeInstall_LocalizedStrings.WitnessServer -WitnessDirectory $ExchangeInstall_LocalizedStrings.WitnessDirectory -DatabaseAvailabilityGroupIpAddresses $dagIPs | Out-Null                              
                         }
                     }
                     2 { ## Standalone server install
                         ## Install latest Exchange security update
                         Install-ExchSU
-                        if($ExchangeInstall_LocalizedStrings.res_0015 -eq 0) {Enable-ExchangeExtendedProtection}
+                        if($ExchangeInstall_LocalizedStrings.DagResult -eq 0) {Enable-ExchangeExtendedProtection}
                         Set-Location $env:ExchangeInstallPath\Bin
                         .\Setup.exe /IAcceptExchangeServerLicenseTerms_DiagnosticDataOFF /PrepareAllDomains
                         Write-Host "Server installation complete"
@@ -726,7 +726,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
                 if($DagName -eq $null) {
                     ## Install latest Exchange security update
                     Install-ExchSU
-                    if($ExchangeInstall_LocalizedStrings.res_0015 -eq 0) {Enable-ExchangeExtendedProtection}
+                    if($ExchangeInstall_LocalizedStrings.DagResult -eq 0) {Enable-ExchangeExtendedProtection}
                     Set-Location $env:ExchangeInstallPath\Bin
                     .\Setup.exe /IAcceptExchangeServerLicenseTerms_DiagnosticDataOFF /PrepareAllDomains
                     Write-Host "Server installation complete"
@@ -767,7 +767,7 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         Write-Host "COMPLETE"
         ## Confirm Active Directory replication is updated across sites
         Write-Host "Verifying AD replication has completed..." -ForegroundColor Yellow
-        $domainController = $ExchangeInstall_LocalizedStrings.res_0031
+        $domainController = $ExchangeInstall_LocalizedStrings.DomainController
         $domainControllers = New-Object System.Collections.ArrayList
         $domainControllers = Get-DomainControllers
         $domainControllers | ForEach-Object { 
@@ -786,9 +786,9 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
             }
         }
         ## Add the mailbox database copies for the recovered server
-        if($ExchangeInstall_LocalizedStrings.res_0004 -eq 1 -and $DagName -ne $null) {
+        if($ExchangeInstall_LocalizedStrings.ExchangeInstallType -eq 1 -and $DagName -ne $null) {
             ## Check if there are database copies to add
-            if($ExchangeInstall_LocalizedStrings.res_0025 -eq 1) {
+            if($ExchangeInstall_LocalizedStrings.DbHasCopies -eq 1) {
                 ## Add the mailbox database copies for this Exchange server
                 Write-Host "Adding database copies to the server..." -ForegroundColor Green
                 Add-DatabaseCopies "c:\Temp\$ServerName-DatabaseCopies.txt"
@@ -799,32 +799,32 @@ switch($ExchangeInstall_LocalizedStrings.res_0099) {
         }
         ## Install latest Exchange security update
         Install-ExchSU
-        if($ExchangeInstall_LocalizedStrings.res_0015 -eq 0) {Enable-ExchangeExtendedProtection}
+        if($ExchangeInstall_LocalizedStrings.DagResult -eq 0) {Enable-ExchangeExtendedProtection}
         Set-Location $env:ExchangeInstallPath\Bin
         .\Setup.exe /IAcceptExchangeServerLicenseTerms_DiagnosticDataOFF /PrepareAllDomains
         ## Exchange server setup is complete
         Restart-Computer
     }
     1{ ## Finalize DC setup
-        if($ExchangeInstall_LocalizedStrings.res_0100 -eq 0) {
+        if($ExchangeInstall_LocalizedStrings.NewAdForest -eq 0) {
             ## Determine the IP subnet for the Active Directory site
-            $ipSubnet = (Get-IPv4Subnet -IPAddress $ExchangeInstall_LocalizedStrings.res_0007 -PrefixLength $ExchangeInstall_LocalizedStrings.res_0008)+"/"+$ExchangeInstall_LocalizedStrings.res_0008
+            $ipSubnet = (Get-IPv4Subnet -IPAddress $ExchangeInstall_LocalizedStrings.IpAddress -PrefixLength $ExchangeInstall_LocalizedStrings.SubnetMask)+"/"+$ExchangeInstall_LocalizedStrings.SubnetMask
             ## Update firewall rule to allow script to access remotely
             Get-NetFirewallRule -DisplayName "Windows Remote Management (HTTP-In)" | Where {$_.Profile -eq "Public" } | Set-NetFirewallRule -RemoteAddress Any
-            if((Get-ADReplicationSite).Name -notmatch $ExchangeInstall_LocalizedStrings.res_0106) {
+            if((Get-ADReplicationSite).Name -notmatch $ExchangeInstall_LocalizedStrings.AdSiteName) {
                 ## Create a new AD site
-                Write-Host "Creating new AD Site called"$ExchangeInstall_LocalizedStrings.res_0106"..." -ForegroundColor Green -NoNewline
-                New-ADReplicationSite -Name $ExchangeInstall_LocalizedStrings.res_0106
+                Write-Host "Creating new AD Site called"$ExchangeInstall_LocalizedStrings.AdSiteName"..." -ForegroundColor Green -NoNewline
+                New-ADReplicationSite -Name $ExchangeInstall_LocalizedStrings.AdSiteName
                 Write-Host "COMPLETE"
                 ## Create a new subnet and add the new site
                 Write-Host "Creating a new subnet for the AD site..." -ForegroundColor Green -NoNewline
-                New-ADReplicationSubnet -Name $ipSubnet -Site $ExchangeInstall_LocalizedStrings.res_0106
+                New-ADReplicationSubnet -Name $ipSubnet -Site $ExchangeInstall_LocalizedStrings.AdSiteName
                 Write-Host "COMPLETE"
                 ## Add the new site to the replication site link
-                Get-ADReplicationSiteLink -Filter * | Set-ADReplicationSiteLink -SitesIncluded @{Add=$ExchangeInstall_LocalizedStrings.res_0106} -ReplicationFrequencyInMinutes 15
+                Get-ADReplicationSiteLink -Filter * | Set-ADReplicationSiteLink -SitesIncluded @{Add=$ExchangeInstall_LocalizedStrings.AdSiteName} -ReplicationFrequencyInMinutes 15
                 ## Add the new DC to the new site
-                Write-Host "Moving $ServerName into the"$ExchangeInstall_LocalizedStrings.res_0106"site..." -ForegroundColor Green -NoNewline
-                Move-ADDirectoryServer $ServerName -Site $ExchangeInstall_LocalizedStrings.res_0106 -Confirm:$False
+                Write-Host "Moving $ServerName into the"$ExchangeInstall_LocalizedStrings.AdSiteName"site..." -ForegroundColor Green -NoNewline
+                Move-ADDirectoryServer $ServerName -Site $ExchangeInstall_LocalizedStrings.AdSiteName -Confirm:$False
                 Write-Host "COMPLETE"
             }
         }
