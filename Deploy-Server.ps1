@@ -5,7 +5,7 @@
 // Modified 15 November 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20221115.0934
+// Version: v20221115.1247
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -25,6 +25,7 @@
 //
 //**********************************************************************​
 #>
+#region ShowBanner
 Clear-Host
 Write-Host -ForegroundColor Yellow '//***********************************************************************'
 Write-Host -ForegroundColor Yellow '//'
@@ -39,6 +40,7 @@ Write-Host -ForegroundColor Yellow '// OUT OF OR IN CONNECTION WITH THE SOFTWARE
 Write-Host -ForegroundColor Yellow '// THE SOFTWARE.'
 Write-Host -ForegroundColor Yellow '//'
 Write-Host -ForegroundColor Yellow '//**********************************************************************​'
+#endregion
 function Check-ExchangeVersion {
     if($newOrgResult -ne 0) {
     $latestVersion = 0
@@ -1201,13 +1203,29 @@ while($deployServer -eq $true) {
                 Get-VMBaseDisk 
             }
             ## Clearing Edge Sync credentials to allow server to be recovered that is part of an Edge subscription
-            Write-Host "Removing any Edge Sync credentials that may be present..." -ForegroundColor Green -NoNewline
-            $dc = (Get-ExchangeServer $ServerName).OriginatingServer
-            [int]$startChar = $ServerName.Length + 4
-            $searchBase = (Get-ExchangeServer $ServerName).DistinguishedName
-            $searchBase = $searchBase.Substring($startChar)
-            Get-ADObject -SearchBase $searchBase -Filter 'cn -eq $ServerName' -SearchScope OneLevel -Properties msExchEdgeSyncCredential -Server $domainController -Credential $credential | Set-ADObject -Clear msExchEdgeSyncCredential -Server $domainController -Credential $credential
-            Write-Host "COMPLETE"
+            Write-Host "Checking for Edge subscription..." -ForegroundColor Green -NoNewline
+            $serverSite = (Get-ExchangeServer $ServerName).Site
+            Get-EdgeSubscription | ForEach-Object {
+                if($_.Site -eq $serverSite) {
+                    Write-Host "FOUND"
+                    $severSite = $serverSite.Substring($serverSite.IndexOf("/Sites/")+7)
+                    Add-Content -Path $serverVarFile -Value ('EdgeDomain = ' + $_.Domain)
+                    Add-Content -Path $serverVarFile -Value ('EdgeName = ' + $_.Name)
+                    Add-Content -Path $serverVarFile -Value ('EdgeSite = ' + $serverSite)
+                    Write-Host "Removing existing Edge sync credentials..." -ForegroundColor Green -NoNewline
+                    $dc = (Get-ExchangeServer $ServerName).OriginatingServer
+                    [int]$startChar = $ServerName.Length + 4
+                    $searchBase = (Get-ExchangeServer $ServerName).DistinguishedName
+                    $searchBase = $searchBase.Substring($startChar)
+                    Get-ADObject -SearchBase $searchBase -Filter 'cn -eq $ServerName' -SearchScope OneLevel -Properties msExchEdgeSyncCredential -Server $domainController -Credential $credential | Set-ADObject -Clear msExchEdgeSyncCredential -Server $domainController -Credential $credential
+                    Write-Host "COMPLETE"
+                    $EdgeAdmin = Read-HostWithColor "Enter the admin username for the Edge server ($($_.Name): "
+                    $EdgePassword = Read-Host "Enter the admin password for the Edge server ($($_.Name)) " -AsSecureString
+                    $EdgePassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($EdgePassword))
+                    Add-Content -Path $serverVarFile -Value ('EdgeAdmin = ' + $EdgeAdmin)
+                    Add-Content -Path $serverVarFile -Value ('EdgePassword = ' + $EdgePassword)
+                }
+            }
             ## Check if the servers was offline and if we need the certificate
             if($askForCertificateLater) {
                 if(Get-CertificateFromServerCheck) {

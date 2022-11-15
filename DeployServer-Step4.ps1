@@ -3,7 +3,7 @@
 // Modified 15 November 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20221115.0935
+// Version: v20221115.1248
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -600,6 +600,20 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
                 }
         }
         Sync-AdConfigPartition
+        ## Recreate Edge subscription if needed
+        if($ExchangeInstall_LocalizedStrings.EdgeName -ne $null) {
+            Write-Host "Recreating Edge subscription..." -ForegroundColor Green
+            Set-Item WSMan:\localhost\Client\TrustedHosts -Value "*" -Force
+            $EdgeServer = $ExchangeInstall_LocalizedStrings.EdgeName+"."+$ExchangeInstall_LocalizedStrings.EdgeDomain
+            $EdgeCreds = New-Object System.Management.Automation.PSCredential($ExchangeInstall_LocalizedStrings.EdgeAdmin, (ConvertTo-SecureString -String $ExchangeInstall_LocalizedStrings.EdgePassword -AsPlainText -Force))
+            $s = New-PSSession -ComputerName $EdgeServer -Credential $EdgeCreds
+            Invoke-Command -ScriptBlock {Add-PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn; New-EdgeSubscription -FileName c:\Temp\AutoEdgeSub.xml -Confirm:$false -Force} -Session $s
+            $temp = Invoke-Command -ScriptBlock {[System.IO.File]::ReadAllBytes("C:\Temp\AutoEdgeSub.xml")} -Session $s
+            New-EdgeSubscription -FileData $temp -Site $ExchangeInstall_LocalizedStrings.EdgeSite
+            Start-Sleep -Seconds 5
+            Start-EdgeSynchronization -TargetServer $EdgeServer
+        }
+           
         ## Disable Exchange diagnostic and monitoring services
         Write-Host "Disabling unwanted Exchange services for lab environment..." -ForegroundColor Green -NoNewline
         switch ($ExchangeInstall_LocalizedStrings.ExchangeVersion) {
