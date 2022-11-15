@@ -3,7 +3,7 @@
 // Modified 15 November 2022
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20221115.1248
+// Version: v20221115.1611
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -454,118 +454,119 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
             }
             Write-Host "COMPLETE"
             #endregion
-            #region Enable TLS 1.2 for .NET 4.x and 3.5
-            Write-Host "Enabling TLS 1.2 for .NET Framework..." -ForegroundColor Green -NoNewline
-            $RegistryPaths = @('HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319',
-                'HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319',
-                'HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727',
-                'HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727')
-            foreach($RegistryPath in $RegistryPaths) {
-                CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'SystemDefaultTlsVersions' -Value 1 -PropertyType 'DWORD'
-                CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'SchUseStrongCrypto' -Value 1 -PropertyType 'DWORD'
-            }    
-            Write-Host "COMPLETE"                   
-            #endregion
-            #region TLS negotiation strict mode
-            Write-Host "Enabling TLS negatiation in strict mode..." -ForegroundColor Green -NoNewline
-            CheckAndAddRegistryKey -RegistryPath "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "AllowInsecureRenegoClients" -Value 0 -PropertyType 'DWORD'
-            CheckAndAddRegistryKey -RegistryPath "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name 'AllowInsecureRenegoServers' -Value 0 -PropertyType 'DWORD'
-            Write-Host "COMPLETE"
-            #endregion
-            #region Configure ciphers
-            Write-Host "Configuring ciphers..." -ForegroundColor Green -NoNewline
-            $Ciphers = @('HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\DES 56/56',
-                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\NULL',
-                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 40/128',
-                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 56/128',
-                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 56/56',
-                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 40/128',
-                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 56/128',
-                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 64/128',
-                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128',
-                'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\Triple DES 168')
-            foreach($Cipher in $Ciphers) {
-                CheckAndAddRegistryPath -RegistryPath $Cipher
-                CheckAndAddRegistryKey -RegistryPath $Cipher -Name 'Enabled' -Value 0 -PropertyType 'DWORD'
-            }
-            Write-Host "COMPLETE"
-            #endregion
-            #region Configure hashes
-            Write-Host "Configuring hashes..." -ForegroundColor Green -NoNewline
-            $Hashes = @('HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\MD5')
-            foreach($Hash in $Hashes) {
-                CheckAndAddRegistryPath -RegistryPath $Cipher
-                CheckAndAddRegistryKey -RegistryPath $Cipher -Name 'Enabled' -Value 0 -PropertyType 'DWORD'
-            }
-            Write-Host "COMPLETE"
-            #endregion
-            #region Windows 2016 Cipher suites
-            if(([environment]::OSVersion.Version).Major -eq 10 -and ([environment]::OSVersion.Version).Minor -eq 0) {
-                Write-Host "Configuring cipher suites on Windows Server 2016..." -ForegroundColor Green -NoNewline
-                $cipherSuiteKeyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Cryptography\Configuration\SSL\00010002"  
-                if (((Get-ItemProperty $cipherSuiteKeyPath).Functions).Count -ge 1) {
-	                Write-Host "Cipher suites are configured by Group Policy" -Foregroundcolor Red
-                } 
-                else {
-                    Write-Host "No cipher suites are configured by Group Policy - you can continue with the next steps" -Foregroundcolor Green    
-                    foreach ($suite in (Get-TLSCipherSuite).Name) {
-                        if (-not([string]::IsNullOrWhiteSpace($suite))) {
-                            Disable-TlsCipherSuite -Name $suite -ErrorAction SilentlyContinue
-                        }
-                    }
-                    $CipherSuites = @('TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384',
-                        'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256',
-                        'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384',
-                        'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256',
-                        'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384',
-                        'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256',
-                        'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384',
-                        'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256')
-                    $suiteCount = 0
-                    foreach ($suite in $cipherSuites) {
-                        Enable-TlsCipherSuite -Name $suite -Position $suiteCount
-                        $suiteCount++
+        }
+        #region Enable TLS 1.2 for .NET 4.x and 3.5
+        Write-Host "Enabling TLS 1.2 for .NET Framework..." -ForegroundColor Green -NoNewline
+        $RegistryPaths = @('HKLM:\SOFTWARE\Microsoft\.NETFramework\v4.0.30319',
+            'HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v4.0.30319',
+            'HKLM:\SOFTWARE\Microsoft\.NETFramework\v2.0.50727',
+            'HKLM:\SOFTWARE\Wow6432Node\Microsoft\.NETFramework\v2.0.50727')
+        foreach($RegistryPath in $RegistryPaths) {
+            CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'SystemDefaultTlsVersions' -Value 1 -PropertyType 'DWORD'
+            CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'SchUseStrongCrypto' -Value 1 -PropertyType 'DWORD'
+        }    
+        Write-Host "COMPLETE"                   
+        #endregion
+        #region TLS negotiation strict mode
+        Write-Host "Enabling TLS negatiation in strict mode..." -ForegroundColor Green -NoNewline
+        CheckAndAddRegistryKey -RegistryPath "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name "AllowInsecureRenegoClients" -Value 0 -PropertyType 'DWORD'
+        CheckAndAddRegistryKey -RegistryPath "HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL" -Name 'AllowInsecureRenegoServers' -Value 0 -PropertyType 'DWORD'
+        Write-Host "COMPLETE"
+        #endregion
+        #region Configure ciphers
+        Write-Host "Configuring ciphers..." -ForegroundColor Green -NoNewline
+        $Ciphers = @('HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\DES 56/56',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\NULL',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 40/128',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 56/128',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC2 56/56',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 40/128',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 56/128',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 64/128',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\RC4 128/128',
+            'HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Ciphers\Triple DES 168')
+        foreach($Cipher in $Ciphers) {
+            CheckAndAddRegistryPath -RegistryPath $Cipher
+            CheckAndAddRegistryKey -RegistryPath $Cipher -Name 'Enabled' -Value 0 -PropertyType 'DWORD'
+        }
+        Write-Host "COMPLETE"
+        #endregion
+        #region Configure hashes
+        Write-Host "Configuring hashes..." -ForegroundColor Green -NoNewline
+        $Hashes = @('HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Hashes\MD5')
+        foreach($Hash in $Hashes) {
+            CheckAndAddRegistryPath -RegistryPath $Cipher
+            CheckAndAddRegistryKey -RegistryPath $Cipher -Name 'Enabled' -Value 0 -PropertyType 'DWORD'
+        }
+        Write-Host "COMPLETE"
+        #endregion
+        $ServerOS = (Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name ProductName).ProductName
+        #region Windows 2016 Cipher suites
+        if($ServerOS -like "*2016*") {
+            Write-Host "Configuring cipher suites on Windows Server 2016..." -ForegroundColor Green -NoNewline
+            $cipherSuiteKeyPath = "HKLM:\SOFTWARE\Policies\Microsoft\Cryptography\Configuration\SSL\00010002"  
+            if (((Get-ItemProperty $cipherSuiteKeyPath).Functions).Count -ge 1) {
+	            Write-Host "Cipher suites are configured by Group Policy" -Foregroundcolor Red
+            } 
+            else {
+                Write-Host "No cipher suites are configured by Group Policy - you can continue with the next steps" -Foregroundcolor Green    
+                foreach ($suite in (Get-TLSCipherSuite).Name) {
+                    if (-not([string]::IsNullOrWhiteSpace($suite))) {
+                        Disable-TlsCipherSuite -Name $suite -ErrorAction SilentlyContinue
                     }
                 }
-                Write-Host "COMPLETE"
-                Write-Host "Configuring cipher curves..." -ForegroundColor Green -NoNewline
-                Disable-TlsEccCurve -Name "curve25519"
-                Enable-TlsEccCurve -Name "NistP384" -Position 0
-                Enable-TlsEccCurve -Name "NistP256" -Position 1
-                Write-Host "COMPLETE"
+                $CipherSuites = @('TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256',
+                    'TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384',
+                    'TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256',
+                    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384',
+                    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256',
+                    'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384',
+                    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256')
+                $suiteCount = 0
+                foreach ($suite in $cipherSuites) {
+                    Enable-TlsCipherSuite -Name $suite -Position $suiteCount
+                    $suiteCount++
+                }
             }
-            #endregion
-            #region Windows 2012 R2 Cipher suites
-            if(([environment]::OSVersion.Version).Major -eq 6 -and ([environment]::OSVersion.Version).Minor -eq 2) {
-                Write-Host "Configuring cipher suites on Windows Server 2012 R2..." -ForegroundColor Green -NoNewline
-                $RegistryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Cryptography\Configuration\Local\SSL\00010002"
-                $CipherSuites = @('TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384_P384',
-                    'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384_P256',
-                    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P384',
-                    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P256',
-                    'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384_P384',
-                    'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384_P256',
-                    'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256_P384',
-                    'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256_P256',
-                    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384_P384',
-                    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384_P256',
-                    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256_P384',
-                    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256_P256',
-                    'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA_P384',
-                    'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA_P256',
-                    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA_P384',
-                    'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA_P256',
-                    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA_P384',
-                    'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA_P256',
-                    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA_P384',
-                    'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA_P256',
-                    'TLS_RSA_WITH_AES_256_GCM_SHA384',
-                    'TLS_RSA_WITH_AES_128_GCM_SHA256')
-                CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'Functions' -Value $CipherSuites -PropertyType 'STRING'
-                Write-Host "COMPLETE"
-            }
-            #endregion
+            Write-Host "COMPLETE"
+            Write-Host "Configuring cipher curves..." -ForegroundColor Green -NoNewline
+            Disable-TlsEccCurve -Name "curve25519"
+            Enable-TlsEccCurve -Name "NistP384" -Position 0
+            Enable-TlsEccCurve -Name "NistP256" -Position 1
+            Write-Host "COMPLETE"
         }
+        #endregion
+        #region Windows 2012 R2 Cipher suites
+        if($ServerOS -like "*2012*") {
+            Write-Host "Configuring cipher suites on Windows Server 2012 R2..." -ForegroundColor Green -NoNewline
+            $RegistryPath = "HKLM:\SYSTEM\CurrentControlSet\Control\Cryptography\Configuration\Local\SSL\00010002"
+            $CipherSuites = @('TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384_P384',
+                'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384_P256',
+                'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P384',
+                'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256_P256',
+                'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384_P384',
+                'TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384_P256',
+                'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256_P384',
+                'TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256_P256',
+                'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384_P384',
+                'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384_P256',
+                'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256_P384',
+                'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256_P256',
+                'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA_P384',
+                'TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA_P256',
+                'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA_P384',
+                'TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA_P256',
+                'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA_P384',
+                'TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA_P256',
+                'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA_P384',
+                'TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA_P256',
+                'TLS_RSA_WITH_AES_256_GCM_SHA384',
+                'TLS_RSA_WITH_AES_128_GCM_SHA256')
+            CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'Functions' -Value $CipherSuites -PropertyType 'STRING'
+            Write-Host "COMPLETE"
+        }
+        #endregion
         #region Disable TLS 1.0 and 1.1
         Write-Host "Disabling TLS 1.0 and 1.1..." -ForegroundColor Green -NoNewline
         $RegistryPaths = @('HKLM:\SYSTEM\CurrentControlSet\Control\SecurityProviders\SCHANNEL\Protocols\TLS 1.0',
