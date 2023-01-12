@@ -79,11 +79,11 @@ function Install-ExchSU {
 function Install-Exch2013SU {
 ## Download and install Security Update for Exchange 2013
     Write-Host "Downloading Security Update for Exchange 2013 CU23..." -ForegroundColor Green 
-    Invoke-WebRequest -Uri "https://download.microsoft.com/download/b/3/3/b33cf488-9f00-411f-8f08-beef7d219e81/Exchange2013-KB5019758-x64-en.exe" -OutFile "C:\Temp\Exchange2013-KB5019758-x64-en.exe" 
-    Write-Host "Installing November 2022 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
-    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5019758-x64-en.exe /passive"
+    Invoke-WebRequest -Uri "https://download.microsoft.com/download/f/6/6/f667a13e-0894-4d3e-aa9a-b8f359075b9f/Exchange2013-KB5022188-x64-en.exe" -OutFile "C:\Temp\Exchange2013-KB5022188-x64-en.exe" 
+    Write-Host "Installing January 2023 Security Update for Exchange 2013 CU23..." -ForegroundColor Green -NoNewline
+    Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2013-KB5022188-x64-en.exe /passive"
     Start-Sleep -Seconds 30
-    while(Get-Process msiexec | where {$_.MainWindowTitle -eq "Security Update for Exchange Server 2013 Cumulative Update 23 (KB5019758)"} -ErrorAction SilentlyContinue) {
+    while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5022188*"} -ErrorAction SilentlyContinue) {
         Write-Host "..." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 10
     }
@@ -91,19 +91,15 @@ function Install-Exch2013SU {
 }
 function Install-Exch2016SU{
 ## Download and install Security Update for Exchange 2016
-    if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2308*") {
-        Write-Host "Downloading Security Update for Exchange 2016 CU22..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/4/9/d4993639-8642-4461-a109-79d9ab46bc68/Exchange2016-KB5019758-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5019758-x64-en.exe" 
-    }
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.01.2507*") {
         Write-Host "Downloading Security Update for Exchange 2016 CU23..." -ForegroundColor Green
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/e/9/a/e9a07b3b-b440-44bb-8484-7ece339ffaf1/Exchange2016-KB5019758-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5019758-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/5/3/9/539b126b-c5d6-47fc-a8d6-51a72637df5f/Exchange2016-KB5022143-x64-en.exe" -OutFile "C:\Temp\Exchange2016-KB5022143-x64-en.exe" 
     }
     if(Get-Item C:\Temp\Exchange2016-KB5019758-x64-en.exe -ErrorAction Ignore) {
-        Write-Host "Installing November 2022 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
+        Write-Host "Installing January 2023 Security Update for Exchange 2016..." -ForegroundColor Green -NoNewline
         Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2016-KB5019758-x64-en.exe /passive"
         Start-Sleep -Seconds 30
-        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5019758*"} -ErrorAction SilentlyContinue) {
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5022143*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
         }
@@ -114,17 +110,17 @@ function Install-Exch2019SU{
 ## Download and install Security Update for Exchange 2019
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.0986*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU11..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/3/5/a/35a6ba9d-d36b-482c-8ca1-81ef2a6f05a3/Exchange2019-KB5019758-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5019758-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/4/4/4/4447cb74-ce40-45bd-ac3c-9cedc97077f7/Exchange2019-KB5022193-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5022193-x64-en.exe" 
     }
     if((Get-Item $env:ExchangeInstallPath\bin\setup.exe).VersionInfo.ProductVersion -like "15.02.1118*") {
         Write-Host "Downloading Security Update for Exchange 2019 CU12..." -ForegroundColor Green 
-        Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/b/9/db9ee80e-9c18-40d8-91f9-f2353dcf4f86/Exchange2019-KB5019758-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5019758-x64-en.exe" 
+        Invoke-WebRequest -Uri "https://download.microsoft.com/download/d/f/a/dfa11017-6b59-46a8-8ce6-0ecb6e1036f9/Exchange2019-KB5022193-x64-en.exe" -OutFile "C:\Temp\Exchange2019-KB5022193-x64-en.exe" 
     }
     if(Get-Item C:\Temp\Exchange2019-KB5019758-x64-en.exe -ErrorAction Ignore) {
-        Write-Host "Installing November 2022 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
-        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5019758-x64-en.exe /passive"
+        Write-Host "Installing January 2023 Security Update for Exchange 2019..." -ForegroundColor Green -NoNewline
+        Start-Process -FilePath powershell -Verb Runas -ArgumentList "C:\Temp\Exchange2019-KB5022193-x64-en.exe /passive"
         Start-Sleep -Seconds 30
-        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5019758*"} -ErrorAction SilentlyContinue) {
+        while(Get-Process msiexec | where {$_.MainWindowTitle -like "*KB5022193*"} -ErrorAction SilentlyContinue) {
             Write-Host "..." -ForegroundColor Green -NoNewline
             Start-Sleep -Seconds 10
         }
