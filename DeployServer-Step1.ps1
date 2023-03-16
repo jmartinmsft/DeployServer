@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step1.ps1
-// Modified 10 November 2022
+// Modified 16 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20221110.1433
+// Version: v20230316.1408
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -136,12 +136,15 @@ if((Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\'
 }
 $domainController = $ExchangeInstall_LocalizedStrings.DomainController
 ## Install ADDS if the server is a domain controller
-if($ExchangeInstall_LocalizedStrings.ServerType -eq 1) {
+switch ($ExchangeInstall_LocalizedStrings.ServerType) {
+#if($ExchangeInstall_LocalizedStrings.ServerType -eq 1)
+    1 {
     Write-Host "Installing the ADDS Windows feature..." -ForegroundColor Green -NoNewline
     Install-WindowsFeature AD-Domain-Services -IncludeManagementTools
     Write-Host "COMPLETE"
 }
-else {
+#else 
+    0 {
     if($ExchangeInstall_LocalizedStrings.ExchangeInstallType -eq 1) {
         ## First we need to bring the additional disks online
         Get-Disk | Where { $_.OperationalStatus -eq "Offline" } | ForEach-Object {
@@ -215,6 +218,8 @@ else {
     }
     Write-Host "COMPLETE"
 }
+}
+
 ## Rename the server
 Write-Host "Renaming the computer account to $ServerName..." -ForegroundColor Yellow
 Start-Sleep -Seconds 3

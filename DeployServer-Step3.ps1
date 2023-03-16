@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step3.ps1
-// Modified 10 November 2022
+// Modified 16 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20221110.1434
+// Version: v20230316.1408
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -463,4 +463,13 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
         }
         Restart-Computer
     }
+    2 {
+        ## Clean up the registry from the automatic login information
+        Write-Host "Removing auto-logon registry keys..." -ForegroundColor Green -NoNewline
+        Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "AutoAdminLogon" -Force | Out-Null
+        Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "DefaultPassword" -Force | Out-Null
+        Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "DefaultUserName" -Force | Out-Null
+        Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon" -Name "DefaultDomainName" -Force | Out-Null
+        Write-Host "COMPLETE"
+     }
 }

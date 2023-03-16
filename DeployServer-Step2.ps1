@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step2.ps1
-// Modified 10 November 2022
+// Modified 16 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20221110.1433
+// Version: v20230316.1408
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -283,6 +283,7 @@ if($ExchangeInstall_LocalizedStrings.NewAdForest -ne 0) {
     Write-Host "Joining"$ExchangeInstall_LocalizedStrings.ServerName"to the"$ExchangeInstall_LocalizedStrings.Domain"domain..." -ForegroundColor Yellow
     ## Continuous loop for new deployment where server may be online before AD forest is deployed
     while(1){
+    #Domain value is blank for Server option
         Add-Computer -ComputerName $env:COMPUTERNAME -Credential $credential -DomainName $ExchangeInstall_LocalizedStrings.Domain -Restart -ErrorAction Ignore
         Write-Host "." -ForegroundColor Green -NoNewline
         Start-Sleep -Seconds 5

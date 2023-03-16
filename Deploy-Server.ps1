@@ -2,10 +2,10 @@
 //***********************************************************************
 //
 // Deploy-Server.ps1
-// Modified 15 November 2022
+// Modified 16 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20221115.1247
+// Version: v20230316.1407
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -350,8 +350,8 @@ function Connect-Exchange {
                 Set-DnsClientServerAddress -InterfaceIndex (Get-NetIPConfiguration | Where {$_.IPv4DefaultGateway -ne $null}).InterfaceIndex -ServerAddresses $dnsServers.ServerAddresses[0],$dnsServers.ServerAddresses[1] | Out-Null
             }
             Write-Host "COMPLETE"
-            Remove-Item C:\Temp\hosts-$timeStamp -Confirm:$False -ErrorAction Ignore
-            Remove-Item c:\Temp\$serverName* -Confirm:$false -ErrorAction Ignore
+            Remove-Item $Script:ScriptPath\hosts-$timeStamp -Confirm:$False -ErrorAction Ignore
+            Remove-Item $Script:ScriptPath\$serverName* -Confirm:$false -ErrorAction Ignore
             exit
         }
     }
@@ -613,7 +613,7 @@ function Check-NewDeployment {
 }
 function Create-ServerVariableFile {
     ## Create psd1 with variables for the VM to use for setup
-    $serverVarFileName = "c:\Temp\$ServerName-ExchangeInstall-strings.psd1"
+    $serverVarFileName = "$Script:ScriptPath\$ServerName-ExchangeInstall-strings.psd1"
     New-Item -Name "Temp" -ItemType Directory -Path "c:\" -ErrorAction SilentlyContinue | Out-Null
     New-Item $serverVarFileName -ItemType File -ErrorAction SilentlyContinue | Out-Null
     Add-Content -Path $serverVarFileName -Value "ConvertFrom-StringData @'"
@@ -622,7 +622,7 @@ function Create-ServerVariableFile {
 }
 function Create-VMVariableFile {
     ## Create psd1 with variables for the VM to use for setup
-    $serverVMFileName = "c:\Temp\$ServerName-VM-strings.psd1"
+    $serverVMFileName = "$Script:ScriptPath\$ServerName-VM-strings.psd1"
     New-Item -Name "Temp" -ItemType Directory -Path "c:\" -ErrorAction SilentlyContinue | Out-Null
     New-Item $serverVMFileName -ItemType File -ErrorAction SilentlyContinue | Out-Null
     Add-Content -Path $serverVMFileName -Value "ConvertFrom-StringData @'"
@@ -633,7 +633,8 @@ function Get-NewServerType {
     ## Prompt for the type of new server for deployment
     $newExchange = New-Object System.Management.Automation.Host.ChoiceDescription '&Exchange Server', 'Exchange Server'
     $newDomainController = New-Object System.Management.Automation.Host.ChoiceDescription '&Domain Controller', 'Domain Controller'
-    $newInstallOption = [System.Management.Automation.Host.ChoiceDescription[]]($newExchange, $newDomainController)
+    $newServer = New-Object System.Management.Automation.Host.ChoiceDescription '&Server', 'Server'
+    $newInstallOption = [System.Management.Automation.Host.ChoiceDescription[]]($newExchange, $newDomainController, $newServer)
     $newInstallType = $Host.UI.PromptForChoice("Server deployment script","Select the type of server to deploy:", $newInstallOption, 0)
     return $newInstallType
 }
@@ -645,48 +646,7 @@ function Check-ADForest {
     $forestInstallType = $Host.UI.PromptForChoice("Server deployment script","Is this a new or existing Active Directory forest:", $forestOption, 0)
     return $forestInstallType
 }
-
-## Create an array to store all the VM server names
-$vmServers = New-Object System.Collections.ArrayList
-## Create an array to store Exchange servers and version
-$exchangeServers = New-Object System.Collections.ArrayList
-#Backup current hosts file
-$timeStamp = Get-Date -Format yyyyMMddHHmmss
-$hostsFile = "C:\Windows\System32\drivers\etc\hosts"
-Copy-Item $hostsFile -Destination "C:\Temp\hosts-$timeStamp" -Force -Confirm:$False
-    
-$newInstallType = Get-NewServerType
-
-if($newInstallType -eq 1) {
-    $forestInstallType = Check-ADForest
-    if($forestInstallType -eq 0) {
-        ## Get the domain name for the new forest
-        $validDomain =$false
-        while($validDomain -eq $false) {
-            [string]$domain = (Read-HostWithColor "Please enter the name for Active Directory domain: ").ToLower()
-            if($domain -like "*.*") { $validDomain = $true }
-        }
-        $2012Mode = New-Object System.Management.Automation.Host.ChoiceDescription 'Windows 201&2 R2', 'Windows 2012 R2'
-        $2016Mode = New-Object System.Management.Automation.Host.ChoiceDescription 'Windows 201&6', 'Windows 2016'
-        $modeOption = [System.Management.Automation.Host.ChoiceDescription[]]($2012Mode, $2016Mode)
-        ## Get the domain mode for the domain
-        $domainMode = $Host.UI.PromptForChoice("Server deployment script","Select the domain mode:", $modeOption, 1)
-        ## Get the forest mode for the forest
-        $validForest = $false
-        while($validForest -eq $false) {
-            $forestMode = $Host.UI.PromptForChoice("Server deployment script","Select the forest mode:", $modeOption, 1)
-            if($domainMode -lt $forestMode) {
-                Write-Host "You can select a forest mode that is greater than the domain mode." -ForegroundColor Yellow -BackgroundColor Black
-            }
-            else { $validForest = $true }
-        }
-        $sampleNetBIOS = $domain.Substring(0, $domain.IndexOf("."))
-        $netBIOSName = (Read-Host "Please enter the NetBIOS name for the domain ($sampleNetBIOS) ").ToUpper()
-    }
-    $UserName = "Administrator"
-}
-
-if($forestInstallType -eq 1 -or $newInstallType -eq 0) {
+function Prepare-HostMachine {
     Write-Host "Preparing your host machine..." -ForegroundColor Green
     ## Update DNS settings on VM host so it can communicate with the lab
     $tempDNS = $null
@@ -766,6 +726,76 @@ if($forestInstallType -eq 1 -or $newInstallType -eq 0) {
         Write-Host "Your account is not a member of the Schema Admins group. Please update group membership or ensure the schema has been updated prior to running the next step." -ForegroundColor Red
         Start-Sleep -Seconds 2
     }
+    return @{
+            "Domain"  = $domain
+            "DomainController"  = $domainController
+            "Password" = $Password
+            "UserName" = $UserName
+        }
+    return $domain, $domainController, $Password, $UserName
+}
+
+
+$Script:ScriptPath = Get-Location
+## Create an array to store all the VM server names
+$vmServers = New-Object System.Collections.ArrayList
+## Create an array to store Exchange servers and version
+$exchangeServers = New-Object System.Collections.ArrayList
+#Backup current hosts file
+$timeStamp = Get-Date -Format yyyyMMddHHmmss
+$hostsFile = "C:\Windows\System32\drivers\etc\hosts"
+Copy-Item $hostsFile -Destination "$Script:ScriptPath\hosts-$timeStamp" -Force -Confirm:$False
+    
+$newInstallType = Get-NewServerType
+
+switch($newInstallType) {
+    1 {
+        $forestInstallType = Check-ADForest
+        if($forestInstallType -eq 0) {
+            ## Get the domain name for the new forest
+            $validDomain =$false
+            while($validDomain -eq $false) {
+                [string]$domain = (Read-HostWithColor "Please enter the name for Active Directory domain: ").ToLower()
+                if($domain -like "*.*") { $validDomain = $true }
+            }
+            $2012Mode = New-Object System.Management.Automation.Host.ChoiceDescription 'Windows 201&2 R2', 'Windows 2012 R2'
+            $2016Mode = New-Object System.Management.Automation.Host.ChoiceDescription 'Windows 201&6', 'Windows 2016'
+            $modeOption = [System.Management.Automation.Host.ChoiceDescription[]]($2012Mode, $2016Mode)
+            ## Get the domain mode for the domain
+            $domainMode = $Host.UI.PromptForChoice("Server deployment script","Select the domain mode:", $modeOption, 1)
+            ## Get the forest mode for the forest
+            $validForest = $false
+            while($validForest -eq $false) {
+                $forestMode = $Host.UI.PromptForChoice("Server deployment script","Select the forest mode:", $modeOption, 1)
+                if($domainMode -lt $forestMode) {
+                    Write-Host "You can select a forest mode that is greater than the domain mode." -ForegroundColor Yellow -BackgroundColor Black
+                }
+                else { $validForest = $true }
+            }
+            $sampleNetBIOS = $domain.Substring(0, $domain.IndexOf("."))
+            $netBIOSName = (Read-Host "Please enter the NetBIOS name for the domain ($sampleNetBIOS) ").ToUpper()
+        }
+        $UserName = "Administrator"
+        if($forestInstallType -eq 1) { $LogonInfo = Prepare-HostMachine
+            $domain = $LogonInfo.Domain
+            $domainController = $LogonInfo.DomainController
+            $UserName = $LogonInfo.UserName
+            $Password = $LogonInfo.Password
+         }
+    }
+    0 { $LogonInfo = Prepare-HostMachine
+    $domain = $LogonInfo.Domain
+            $domainController = $LogonInfo.DomainController
+            $UserName = $LogonInfo.UserName
+            $Password = $LogonInfo.Password
+             }
+    2 { $LogonInfo = Prepare-HostMachine
+    $domain = $LogonInfo.Domain
+            $domainController = $LogonInfo.DomainController
+            $UserName = $LogonInfo.UserName
+            $Password = $LogonInfo.Password
+             }
+#if($forestInstallType -eq 1 -or $newInstallType -eq 0) {}
 }
 
 $deployServer = $true
@@ -825,7 +855,9 @@ while($deployServer -eq $true) {
     $ipV6Result = $Host.UI.PromptForChoice("Server deployment script","Do you want to disable IPv6 on this server?", $yesNoOption, 0)
     Add-Content -Path $serverVarFile -Value ('IpV6 = ' + $ipV6Result)
 
-    if($newInstallType -eq 1) {
+    #if($newInstallType -eq 1) {
+    switch($newInstallType) {
+        1 {
         if($forestInstallType -eq $null) {
             $forestInstallType = Check-ADForest
         }
@@ -876,7 +908,7 @@ while($deployServer -eq $true) {
             Add-Content -Path $serverVarFile -Value ('DomainNetBiosName = ' + $netBIOSName)
         }
     }
-    else {
+        0 {
         $askForCertificateLater = $false
         Add-Content -Path $serverVarFile -Value ('ServerType = ' + $newInstallType)
         Add-Content -Path $serverVarFile -Value ('ExchangeInstallType = ' + $exInstallType)
@@ -952,10 +984,10 @@ while($deployServer -eq $true) {
                     ## Get disk information
                     Write-Host "Getting disk information..." -ForegroundColor Green -NoNewline
                     $scriptBlock = {
-                        New-Item -ItemType Directory -Path C:\Temp -ErrorAction Ignore | Out-Null
+                        New-Item -ItemType Directory -Path $Script:ScriptPath -ErrorAction Ignore | Out-Null
                         $p = @()
                         $output = "DiskNumber,PartitionNumber,AccessPaths"
-                        $output | Out-File "C:\Temp\DiskInfo.csv" -Force
+                        $output | Out-File "$Script:ScriptPath\DiskInfo.csv" -Force
                         Get-Disk | where {$_.Number -gt 0} | ForEach-Object { $p = Get-Partition -DiskNumber $_.Number | Where {$_.AccessPaths -ne $null} | Select DiskNumber,PartitionNumber,AccessPaths}
                         $p | foreach-object { 
                             $diskNumber = $p.DiskNumber
@@ -963,7 +995,7 @@ while($deployServer -eq $true) {
                             ForEach ($a in $p.AccessPaths) { 
                                 if($a -notlike "*Volume{*") { 
                                     $output = "$diskNumber,$partitionNumber,$a"
-                                    $output | Out-File "C:\Temp\DiskInfo.csv" -Append
+                                    $output | Out-File "$Script:ScriptPath\DiskInfo.csv" -Append
                                 }
                             }
                         }
@@ -971,7 +1003,7 @@ while($deployServer -eq $true) {
                     Invoke-Command -Session $session -ScriptBlock $scriptBlock
                     $scriptFiles = "\\$ServerName\c$\Temp"
                     New-PSDrive -Name "Script" -PSProvider FileSystem -Root $scriptFiles -Credential $credential | Out-Null
-                    Copy-Item -Path "Script:\DiskInfo.csv" -Destination "C:\Temp\$ServerName-DiskInfo.csv" -Force -ErrorAction Ignore
+                    Copy-Item -Path "Script:\DiskInfo.csv" -Destination "$Script:ScriptPath\$ServerName-DiskInfo.csv" -Force -ErrorAction Ignore
                     Remove-PSDrive -Name Script
                     Write-Host "COMPLETE"
                     Disconnect-PSSession -Name ServerConfig | Out-Null
@@ -1297,10 +1329,10 @@ while($deployServer -eq $true) {
                         }
                         ## Get a list of databases and the replay lag times for the Exchange server
                         $replayLagTime = [string](Get-MailboxDatabase $_.Name | Where {$_.ReplayLagTimes -like "*$ServerName*" }).ReplayLagTimes
-                        $_.Name + "," + $replayLagTime | Out-File "c:\Temp\$ServerName-DatabaseCopies.txt" -Append
+                        $_.Name + "," + $replayLagTime | Out-File "$Script:ScriptPath\$ServerName-DatabaseCopies.txt" -Append
                         ## Get the current activation preferences for the mailbox databases in the DAG
                         $activationPreference = [string](Get-MailboxDatabase $_.Name | Select Name -ExpandProperty ActivationPreference)
-                        $_.Name + "," + $activationPreference | Out-File "c:\Temp\$ServerName-$DagName-ActivationPreferences.txt" -Append
+                        $_.Name + "," + $activationPreference | Out-File "$Script:ScriptPath\$ServerName-$DagName-ActivationPreferences.txt" -Append
                         ## Check if the database is mounted on this server
                         $dbMounted = $true
                         while($dbMounted -eq $true) {
@@ -1409,7 +1441,7 @@ while($deployServer -eq $true) {
                     Write-Host "Failed to remove $ServerName from $DagName. You can attempt to resolve the issue and try again later." -ForegroundColor Red
                     ## Script failed to remove the server from the DAG so we are removing it from the VM list and deleting files
                     $vmServers.Remove($ServerName)
-                    Remove-Item -Path c:\Temp\$ServerName* -Force
+                    Remove-Item -Path $Script:ScriptPath\$ServerName* -Force
                 }
             }
             else {
@@ -1422,13 +1454,42 @@ while($deployServer -eq $true) {
         ## Export the Exchange certificate
         Write-Host "Exporting current Exchange certificate with thumbprint $thumb from $certServer..." -ForegroundColor Green -NoNewline
         ## Need to check for c:\Temp
-        New-Item -ItemType Directory -Path "\\$Script:exchServer\c$\Temp" -ErrorAction Ignore | Out-Null
-        if(Get-Item "C:\Temp\$ServerName-Exchange.pfx" -ErrorAction Ignore) { Remove-Item "C:\Temp\$ServerName-Exchange.pfx" -Confirm:$False -Force}
+        #New-Item -ItemType Directory -Path "\\$Script:exchServer\c$\Temp" -ErrorAction Ignore | Out-Null
+        if(Get-Item "$Script:ScriptPath\$ServerName-Exchange.pfx" -ErrorAction Ignore) { Remove-Item "$Script:ScriptPath\$ServerName-Exchange.pfx" -Confirm:$False -Force}
         $cert = Export-ExchangeCertificate -Server $Script:exchServer -Thumbprint $thumb -BinaryEncoded -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force)
-        Set-Content -Path "c:\Temp\$ServerName-Exchange.pfx" -Value $cert.FileData -Encoding Byte
+        Set-Content -Path "$Script:ScriptPath\$ServerName-Exchange.pfx" -Value $cert.FileData -Encoding Byte
         Write-Host "COMPLETE"
     }
     $noExchange = $false
+    }
+        2 {
+            ## This is a not an Exchange server so just get information for the VM
+        Get-ServerInfo
+        Add-Content -Path $serverVMFileName -Value ('NewVm = 0')
+        Write-Host "Getting some information for setting up the new VM..." -ForegroundColor Green
+        ## Show a list of available virtual switches
+        #Get-VMSwitch | ft
+        $switches
+        ## Get the virtual switch for the VM
+        $vmSwitch = Get-NewVMSwitchName
+        Add-Content -Path $serverVMFileName -Value ('VmSwitch = ' + $vmSwitch)
+        ## Get the amount of memory to assign to the VM
+        $vmMemory = Get-NewVMMemory
+        Add-Content -Path $serverVMFileName -Value ('VmMemory = ' + $vmMemory)
+        ## Get the number of processors to assign to the VM
+        $vmCPU = Get-NewVMCPU
+        Add-Content -Path $serverVMFileName -Value ('VmCpus = ' + $vmCPU)
+        ## Prompt where to save the VHD for the VM
+        $vhdPath = Get-NewVMPath
+        Add-Content -Path $serverVMFileName -Value ('VmVhdPath = ' + $vhdPath)
+        if(!(Get-VMParentDisk)) { Get-VMBaseDisk }
+        $generationResult = Get-NewVMGeneration
+        Add-Content -Path $serverVMFileName -Value ('VmGeneration = ' + $generationResult)
+        ## And also add info for the server install
+        Add-Content -Path $serverVarFile -Value ('ServerType = ' + $newInstallType)
+        Add-Content -Path $serverVarFile -Value ('NewAdForest = ' + $forestInstallType)
+        Add-Content -Path $serverVarFile -Value ('AdDomain = ' + $domain)
+        }
     }
 
     ## Check if Extended Protection should be enabled
@@ -1436,7 +1497,7 @@ while($deployServer -eq $true) {
         $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
         $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
         $yesNoOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
-        $extendedProtectionEnabled = $Host.UI.PromptForChoice("Server deployment script","Do you want to enable Exchange Extended Protection?", $yesNoOption, 1)
+        $extendedProtectionEnabled = $Host.UI.PromptForChoice("Server deployment script","Do you want to enable Exchange Extended Protection?", $yesNoOption, 0)
         switch ($extendedProtectionEnabled) {
             0 {Add-Content -Path $serverVarFile -Value ('ExchangeExtendedProtection = 0')}
             1 {Add-Content -Path $serverVarFile -Value ('ExchangeExtendedProtection = 1')}
@@ -1490,7 +1551,7 @@ Write-Host "COMPLETE"
 
 ## Revert the hosts file back to the original
 Write-Host "Reverting hosts file..." -ForegroundColor Green -NoNewline
-Copy-Item "C:\Temp\hosts-$timeStamp" -Destination  C:\Windows\System32\drivers\etc\hosts -Confirm:$False -Force
+Copy-Item "$Script:ScriptPath\hosts-$timeStamp" -Destination  C:\Windows\System32\drivers\etc\hosts -Confirm:$False -Force
 Write-Host "COMPLETE"
 
 if($credential -ne $null) {
@@ -1507,7 +1568,7 @@ if($credential -ne $null) {
 
 Write-Host "Creating the virtual machines for your deployment..." -ForegroundColor Green
 foreach($v in $vmServers) {
-    $serverVarFile = "c:\Temp\$v-ExchangeInstall-strings.psd1"
+    $serverVarFile = "$Script:ScriptPath\$v-ExchangeInstall-strings.psd1"
     ## Compare Exchange versions and add flag to pause for version
     $versionCheck = New-Object System.Collections.ArrayList
     $version = ($exchangeServers | Where-Object {$_.ServerName -eq $v}).Version
@@ -1535,8 +1596,8 @@ foreach($v in $vmServers) {
             Write-Host "COMPLETE"
         }
     }
-    Set-Location C:\Temp
-    Import-LocalizedData -BindingVariable VM_LocalizedStrings -FileName $v"-VM-strings.psd1"
+    #Set-Location C:\Temp
+    Import-LocalizedData -BindingVariable VM_LocalizedStrings -FileName $v"-VM-strings.psd1" -BaseDirectory $Script:ScriptPath\
     ## Time to work in Hyper-V on the virtual machines
     switch($VM_LocalizedStrings.NewVm) {
         0 { ## Create a new virtual machine using the settings provided
@@ -1606,14 +1667,14 @@ foreach($v in $vmServers) {
     Write-Host "Copying files to the virtual machine..." -ForegroundColor Green -NoNewline
     $Vhd = (Mount-VHD -Path $vhdPath -PassThru | Get-Disk | Get-Partition | Get-Volume |Where {$_.DriveLetter -ne $null}).DriveLetter
     $ServerTemp = "$($Vhd):\Temp"
-    Move-Item C:\Temp\$v* -Destination $ServerTemp -Force -Confirm:$False
-    Copy-Item C:\Temp\Deploy*.ps1 -Destination $ServerTemp -Force -Confirm:$False
-    Copy-Item C:\Temp\Start-Setup.ps1 -Destination $ServerTemp -Force -Confirm:$False
+    Move-Item $Script:ScriptPath\$v* -Destination $ServerTemp -Force -Confirm:$False -ErrorAction Ignore
+    Copy-Item $Script:ScriptPath\Deploy*.ps1 -Destination $ServerTemp -Force -Confirm:$False -ErrorAction Ignore
+    Copy-Item $Script:ScriptPath\Start-Setup.ps1 -Destination $ServerTemp -Force -Confirm:$False -ErrorAction Ignore
     Dismount-VHD -Path $vhdPath
     Write-Host "COMPLETE"
     Write-Host "Starting $v..." -ForegroundColor Green
     Start-VM -Name $v
-    Remove-Item C:\Temp\hosts-$timeStamp -Confirm:$False -ErrorAction Ignore
+    Remove-Item $Script:ScriptPath\hosts-$timeStamp -Confirm:$False -ErrorAction Ignore
     #Remove-Item -Path $v"-VM-strings.psd1" -Force
     #vmconnect.exe $env:COMPUTERNAME $v
 }
