@@ -5,7 +5,7 @@
 // Modified 16 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20230316.1423
+// Version: v20230316.1632
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -1666,6 +1666,11 @@ foreach($v in $vmServers) {
     Write-Host "COMPLETE"
     Write-Host "Copying files to the virtual machine..." -ForegroundColor Green -NoNewline
     $Vhd = (Mount-VHD -Path $vhdPath -PassThru | Get-Disk | Get-Partition | Get-Volume |Where {$_.DriveLetter -ne $null}).DriveLetter
+    if($Vhd -like $null) {
+        $DiskPartition = Get-Partition -DiskNumber (Get-Disk -FriendlyName "Msft Virtual Disk").Number | Where {$_.Type -eq "Basic"}
+        $DiskPartition | Add-PartitionAccessPath -AssignDriveLetter:$True
+        $Vhd = (Get-Partition -DiskNumber (Get-Disk -FriendlyName "Msft Virtual Disk").Number | Where {$_.Type -eq "Basic"}).DriveLetter
+    }
     if(!(Get-Item "$($vhd):\Temp" -ErrorAction SilentlyContinue)) {New-Item -Path "$($vhd):\" -Name Temp -ItemType Directory}
     $ServerTemp = "$($Vhd):\Temp"
     Move-Item $Script:ScriptPath\$v* -Destination $ServerTemp -Force -Confirm:$False -ErrorAction Ignore
