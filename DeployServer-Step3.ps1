@@ -3,7 +3,7 @@
 // Modified 16 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20230316.1408
+// Version: v20230317.1059
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -232,7 +232,7 @@ function Reboot-FailedSetup {
     Set-ItemProperty -Path $WinLogonKey -Name "AutoAdminLogon" -Value "1" 
     Set-ItemProperty -Path $WinLogonKey -Name "AutoLogonCount" -Value "5" 
     Set-ItemProperty -Path $WinLogonKey -Name "DefaultDomainName" -Value $ExchangeInstall_LocalizedStrings.Domain
-    Restart-Computer
+    Restart-Computer -Force
 }
 Start-Transcript -Path C:\Temp\DeployServer-Log.txt -Append -NoClobber | Out-Null
 Write-Host "Running the Step3.ps1 script now..." -ForegroundColor Yellow
