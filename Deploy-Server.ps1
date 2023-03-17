@@ -810,7 +810,7 @@ while($deployServer -eq $true) {
         [string]$ServerName = Read-HostWithColor "Enter the name of the server to deploy: "
         #if this is the first server being deployed and it's a new AD forest, use it as the domain controller for all server deployments
         if($vmServers.Count -eq 0 -and $forestInstallType -eq 0) {
-            $domainController = "$ServerName@$domain"
+            $domainController = "$ServerName.$domain"
         }
         $serverOnline = $false
         ## Do not recover a server with multiple NICs, install process currently cannot handle that scenario
