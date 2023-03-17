@@ -5,7 +5,7 @@
 // Modified 16 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20230317.0815
+// Version: v20230317.0935
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -1049,7 +1049,21 @@ while($deployServer -eq $true) {
                 }
             ## There is no Exchange server to make a connection
                 1 { ## either this is a new forest or we need to confirm there is no exchange
-                    if($forestInstallType -ne 0 -and $domainController -ne $null) {
+                    if($forestInstallType -eq $null) {
+                            ## This is a new deployment and a new Exchange organization may be needed
+                        $noExchange = $true
+                        Add-Content -Path $serverVarFile -Value ('ExchangeOrgMissing = 1')
+                        $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
+                        $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
+                        $yesNoOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
+                        $newOrgResult= $Host.UI.PromptForChoice("Server deployment script","Would you like to create a new Exchange organization?", $yesNoOption, 0)
+                        if($newOrgResult -eq 0) { 
+                            $exOrgName = Read-HostWithColor "Enter the name for the new Exchange organization: "
+                            Add-Content -Path $serverVarFile -Value ('ExchangeOrgName = ' + $exOrgName)
+                        }
+                    }
+                    #if($forestInstallType -ne 0 -and $domainController -ne $null) {                    }
+                    else {
                         ## Try to locate an Exchange organization in Active Directory
                         $adDomain = (Get-ADDomain -Server $domainController -Credential $credential -ErrorAction Ignore).DistinguishedName
                         $configPartition = "CN=Configuration,$adDomain"
@@ -1072,19 +1086,6 @@ while($deployServer -eq $true) {
                                 $exOrgName = Read-HostWithColor "Enter the name for the new Exchange organization: "
                                 Add-Content -Path $serverVarFile -Value ('ExchangeOrgName = ' + $exOrgName)
                             }
-                        }
-                    }
-                    else {
-                        ## This is a new deployment and a new Exchange organization may be needed
-                        $noExchange = $true
-                        Add-Content -Path $serverVarFile -Value ('ExchangeOrgMissing = 1')
-                        $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
-                        $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
-                        $yesNoOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
-                        $newOrgResult= $Host.UI.PromptForChoice("Server deployment script","Would you like to create a new Exchange organization?", $yesNoOption, 0)
-                        if($newOrgResult -eq 0) { 
-                            $exOrgName = Read-HostWithColor "Enter the name for the new Exchange organization: "
-                            Add-Content -Path $serverVarFile -Value ('ExchangeOrgName = ' + $exOrgName)
                         }
                     }
                 }
