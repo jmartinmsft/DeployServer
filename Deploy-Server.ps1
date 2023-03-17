@@ -5,7 +5,7 @@
 // Modified 16 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20230316.1632
+// Version: v20230316.2123
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -732,9 +732,7 @@ function Prepare-HostMachine {
             "Password" = $Password
             "UserName" = $UserName
         }
-    return $domain, $domainController, $Password, $UserName
 }
-
 
 $Script:ScriptPath = Get-Location
 ## Create an array to store all the VM server names
@@ -775,22 +773,25 @@ switch($newInstallType) {
             $sampleNetBIOS = $domain.Substring(0, $domain.IndexOf("."))
             $netBIOSName = (Read-Host "Please enter the NetBIOS name for the domain ($sampleNetBIOS) ").ToUpper()
         }
-        $UserName = "Administrator"
         if($forestInstallType -eq 1) { $LogonInfo = Prepare-HostMachine
             $domain = $LogonInfo.Domain
             $domainController = $LogonInfo.DomainController
             $UserName = $LogonInfo.UserName
             $Password = $LogonInfo.Password
          }
+         else {
+            $UserName = "Administrator"
+            $Password = Read-HostWithColor "Enter the Administrator password for your VM image: "
+         }
     }
     0 { $LogonInfo = Prepare-HostMachine
-    $domain = $LogonInfo.Domain
+            $domain = $LogonInfo.Domain
             $domainController = $LogonInfo.DomainController
             $UserName = $LogonInfo.UserName
             $Password = $LogonInfo.Password
              }
     2 { $LogonInfo = Prepare-HostMachine
-    $domain = $LogonInfo.Domain
+            $domain = $LogonInfo.Domain
             $domainController = $LogonInfo.DomainController
             $UserName = $LogonInfo.UserName
             $Password = $LogonInfo.Password
@@ -834,7 +835,7 @@ while($deployServer -eq $true) {
     Add-Content -Path $serverVarFile -Value ('DomainPassword = ' + $Password)
     Add-Content -Path $serverVarFile -Value ('Domain = ' + $domain)
     ## Check if new AD forest was created and set the domain admin account
-    if($credential -eq $null -or $forestInstallType -eq 0) { # -and $newInstallType -eq 0) {
+    if($forestInstallType -eq 0) { # -and $newInstallType -eq 0) {
         Add-Content -Path $serverVarFile -Value ('DomainController = ' + $vmServers[0])
         Add-Content -Path $serverVarFile -Value ('Username = Administrator')
     }
