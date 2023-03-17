@@ -5,7 +5,7 @@
 // Modified 16 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20230317.0810
+// Version: v20230317.0815
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -287,7 +287,7 @@ function Get-AdminCredential {
     $validUPN = $false
     while($validUPN -eq $false) {
         Write-Host "Getting your lab credentials using the UPN..." -ForegroundColor Green
-        $adminCred = Get-Credential -UserName administrator@resource.local -Message "Enter the lab domain credentials using UPN"
+        $adminCred = Get-Credential -UserName "administrator@" -Message "Enter the lab domain credentials using UPN"
         if($adminCred.UserName -like "*@*" -and $adminCred.UserName -like "*.*") {
             $validUPN = $true
         }
@@ -781,7 +781,10 @@ switch($newInstallType) {
          }
          else {
             $UserName = "Administrator"
-            $Password = Read-HostWithColor "Enter the Administrator password for your VM image: "
+            $vmPassword = Read-Host "Please enter the Administrator password for your VM image:" -AsSecureString
+            $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($vmPassword)            
+            $Password = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
+        
          }
     }
     0 { $LogonInfo = Prepare-HostMachine
