@@ -5,7 +5,7 @@
 // Modified 16 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20230316.2123
+// Version: v20230317.0810
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -805,6 +805,10 @@ while($deployServer -eq $true) {
     $adapterCheck = $true
     while($adapterCheck) {
         [string]$ServerName = Read-HostWithColor "Enter the name of the server to deploy: "
+        #if this is the first server being deployed and it's a new AD forest, use it as the domain controller for all server deployments
+        if($vmServers.Count -eq 0 -and $forestInstallType -eq 0) {
+            $domainController = "$ServerName@$domain"
+        }
         $serverOnline = $false
         ## Do not recover a server with multiple NICs, install process currently cannot handle that scenario
         if(Get-VM $ServerName -ErrorAction Ignore) {
@@ -836,7 +840,8 @@ while($deployServer -eq $true) {
     Add-Content -Path $serverVarFile -Value ('Domain = ' + $domain)
     ## Check if new AD forest was created and set the domain admin account
     if($forestInstallType -eq 0) { # -and $newInstallType -eq 0) {
-        Add-Content -Path $serverVarFile -Value ('DomainController = ' + $vmServers[0])
+        #Add-Content -Path $serverVarFile -Value ('DomainController = ' + $vmServers[0])
+        Add-Content -Path $serverVarFile -Value ('DomainController = ' + $domainController)
         Add-Content -Path $serverVarFile -Value ('Username = Administrator')
     }
     else {
