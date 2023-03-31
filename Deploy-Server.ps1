@@ -2,10 +2,10 @@
 //***********************************************************************
 //
 // Deploy-Server.ps1
-// Modified 16 March 2023
+// Modified 31 March 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20230317.0935
+// Version: v20230331.1454
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -131,7 +131,7 @@ function Move-MailboxDatabaseBestEffort {
 function Get-ExchangeISO {
         Write-Host "Please select the Exchange ISO" -ForegroundColor Yellow
         Start-Sleep -Seconds 2
-        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\ISO"; Title="Select the Exchange ISO"}
+        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="J:\ISO"; Title="Select the Exchange ISO"}
         $fileBrowser.Filter = "ISO (*.iso)| *.iso"
         $fileBrowser.ShowDialog()
         [string]$exoISO = $fileBrowser.FileName
@@ -584,9 +584,19 @@ function Create-NewDAG {
     Add-Content -Path $serverVarFile -Value ('DagName = ' + $DagName)
     $witnessServer = Read-HostWithColor "Enter the name of the witness server: "
     Add-Content -Path $serverVarFile -Value ('WitnessServer = ' + $witnessServer)
-    $witnessDirectory = Read-HostWithColor "Enter the path for the witness directory: "
-    $witnessDirectory = $witnessDirectory.Replace("\","\\")
-    Add-Content -Path $serverVarFile -Value ('WitnessDirectory = ' + $witnessDirectory)
+    $witnessDirectoryValid = $false
+    while($witnessDirectoryValid -eq $false) {
+        $witnessDirectory = Read-HostWithColor "Enter the path for the witness directory (ex: C:\Witness\DAGName): "
+        if($string -match "^([a-zA-Z]:|\\[\w\.]+\\[\w.$]+)\\(?:[\w]+\\)*\w([\w.])+$") {
+            $witnessDirectoryValid = $true
+            $witnessDirectory = $witnessDirectory.Replace("\","\\")
+            Add-Content -Path $serverVarFile -Value ('WitnessDirectory = ' + $witnessDirectory)
+        }
+        else {
+            Write-Warning "The witness directory contains one or more invalid characters. Please try again."
+            Start-Sleep -Seconds 3
+        }
+    }
 }
 function Skip-DagCheck {
     ## Don't verify the existence of the DAG for multiple server deployments
@@ -731,6 +741,7 @@ function Prepare-HostMachine {
             "DomainController"  = $domainController
             "Password" = $Password
             "UserName" = $UserName
+            "Credential" = $credential
         }
 }
 
@@ -792,12 +803,14 @@ switch($newInstallType) {
             $domainController = $LogonInfo.DomainController
             $UserName = $LogonInfo.UserName
             $Password = $LogonInfo.Password
+            $credential = $LogonInfo.credential
              }
     2 { $LogonInfo = Prepare-HostMachine
             $domain = $LogonInfo.Domain
             $domainController = $LogonInfo.DomainController
             $UserName = $LogonInfo.UserName
             $Password = $LogonInfo.Password
+            $credential = $LogonInfo.credential
              }
 #if($forestInstallType -eq 1 -or $newInstallType -eq 0) {}
 }
@@ -993,10 +1006,10 @@ while($deployServer -eq $true) {
                     ## Get disk information
                     Write-Host "Getting disk information..." -ForegroundColor Green -NoNewline
                     $scriptBlock = {
-                        New-Item -ItemType Directory -Path $Script:ScriptPath -ErrorAction Ignore | Out-Null
+                        New-Item -ItemType Directory -Path C:\Temp -ErrorAction Ignore | Out-Null
                         $p = @()
                         $output = "DiskNumber,PartitionNumber,AccessPaths"
-                        $output | Out-File "$Script:ScriptPath\DiskInfo.csv" -Force
+                        $output | Out-File "C:\Temp\DiskInfo.csv" -Force
                         Get-Disk | where {$_.Number -gt 0} | ForEach-Object { $p = Get-Partition -DiskNumber $_.Number | Where {$_.AccessPaths -ne $null} | Select DiskNumber,PartitionNumber,AccessPaths}
                         $p | foreach-object { 
                             $diskNumber = $p.DiskNumber
@@ -1004,7 +1017,7 @@ while($deployServer -eq $true) {
                             ForEach ($a in $p.AccessPaths) { 
                                 if($a -notlike "*Volume{*") { 
                                     $output = "$diskNumber,$partitionNumber,$a"
-                                    $output | Out-File "$Script:ScriptPath\DiskInfo.csv" -Append
+                                    $output | Out-File "C:\Temp\DiskInfo.csv" -Append
                                 }
                             }
                         }
@@ -1012,7 +1025,7 @@ while($deployServer -eq $true) {
                     Invoke-Command -Session $session -ScriptBlock $scriptBlock
                     $scriptFiles = "\\$ServerName\c$\Temp"
                     New-PSDrive -Name "Script" -PSProvider FileSystem -Root $scriptFiles -Credential $credential | Out-Null
-                    Copy-Item -Path "Script:\DiskInfo.csv" -Destination "$Script:ScriptPath\$ServerName-DiskInfo.csv" -Force -ErrorAction Ignore
+                    Copy-Item -Path "Script:\DiskInfo.csv" -Destination "C:\Temp\$ServerName-DiskInfo.csv" -Force -ErrorAction Ignore
                     Remove-PSDrive -Name Script
                     Write-Host "COMPLETE"
                     Disconnect-PSSession -Name ServerConfig | Out-Null
@@ -1058,8 +1071,20 @@ while($deployServer -eq $true) {
                         $yesNoOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
                         $newOrgResult= $Host.UI.PromptForChoice("Server deployment script","Would you like to create a new Exchange organization?", $yesNoOption, 0)
                         if($newOrgResult -eq 0) { 
-                            $exOrgName = Read-HostWithColor "Enter the name for the new Exchange organization: "
-                            Add-Content -Path $serverVarFile -Value ('ExchangeOrgName = ' + $exOrgName)
+                            #Validate the organization name
+                            #if($string -match "^[a-zA-Z0-9]*$") {write-host "good string"} else {write-host "bad string"}
+                            $exOrgNameValid = $false
+                            while($exOrgNameValid -eq $false) {
+                                $exOrgName = Read-HostWithColor "Enter the name for the new Exchange organization: "
+                                    if($exOrgName -match "^[a-zA-Z0-9]*$") {
+                                        $exOrgNameValid = $true
+                                        Add-Content -Path $serverVarFile -Value ('ExchangeOrgName = ' + $exOrgName)
+                                    }
+                                    else {
+                                        Write-Warning "Exchange organization name contains one or more invalid characters. Please try again."
+                                        Start-Sleep -Seconds 3
+                                    }
+                            }
                         }
                     }
                     #if($forestInstallType -ne 0 -and $domainController -ne $null) {                    }
