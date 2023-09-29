@@ -319,6 +319,9 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
                 Set-Item WSMan:\localhost\Client\TrustedHosts $EdgeServer -Force
                 $s = { 
 	                Add-PSSnapin Microsoft.Exchange.Management.PowerShell.SnapIn
+                    if(Get-Item "C:\Temp\EdgeSubscription.xml" -ErrorAction Ignore){
+                        Remove-Item "C:\Temp\EdgeSubscription.xml" -Confirm:$false -Force
+                    }
 	                New-EdgeSubscription -FileName "C:\Temp\EdgeSubscription.xml" -Confirm:$false -Force
                 }
                 Invoke-Command -ScriptBlock $s -Credential $EdgeCreds -ComputerName $EdgeServer
