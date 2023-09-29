@@ -300,10 +300,10 @@ else {
     Set-ItemProperty -Path $WinLogonKey -Name "DefaultDomainName" -Value $ExchangeInstall_LocalizedStrings.Domain
 }
 
+$domain = $ExchangeInstall_LocalizedStrings.Domain
 if($ExchangeInstall_LocalizedStrings.EdgeRole -eq 0) {
 ## Verify that the domain can be resolved before continuing
 Log([string]::Format("Verifying the domain can be resolved.")) Gray
-$domain = $ExchangeInstall_LocalizedStrings.Domain
 $serverReady = $false
 while($serverReady -eq $false) {
     $domainController = (Resolve-DnsName $domain -Type SRV -Server $ExchangeInstall_LocalizedStrings.DomainController -ErrorAction Ignore).PrimaryServer
@@ -438,6 +438,7 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
     1 { ## Adding server as an additional domain controller
         Get-NetFirewallRule -DisplayName "Windows Remote Management (HTTP-In)" | Where-Object {$_.Profile -eq "Public" } | Set-NetFirewallRule -RemoteAddress Any
         $dnsSwitch = $false
+        Log([string]::Format("Attempting to locate a domain controller for the {0} domain.", $domain)) Gray
         $dnsServers = (Get-NetIPConfiguration | Where-Object { $_.Ipv4DefaultGateway.NextHop -ne $null} -ErrorAction Ignore).DNSServer.ServerAddresses
         $dc = (Resolve-DnsName $domain -Type SRV -Server $dnsServers[0] -ErrorAction Ignore).PrimaryServer
         if($dc -notlike "*.$domain") { 
@@ -454,7 +455,15 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
             }
         }
         $ipSubnet = (GetIPv4Subnet -IPAddress $ExchangeInstall_LocalizedStrings.IpAddress -PrefixLength $ExchangeInstall_LocalizedStrings.SubnetMask)+"/"+$ExchangeInstall_LocalizedStrings.SubnetMask
-        if(!(Get-ADReplicationSite -ErrorAction Ignore) -notmatch $ExchangeInstall_LocalizedStrings.AdSiteName) { #-and (Get-ADReplicationSite).Name -notmatch "Default-First-Site-Name" ) {
+        try{
+            if(Get-ADReplicationSite $ExchangeInstall_LocalizedStrings.AdSiteName) {
+                $newSite = $false
+            }
+        }
+        catch {
+            $newSite = $true
+        }
+        if($newSite -eq $true) { #-and (Get-ADReplicationSite).Name -notmatch "Default-First-Site-Name" ) {
             ## Create a new AD site
             Log([string]::Format("Creating new AD Site called {0}.", $ExchangeInstall_LocalizedStrings.AdSiteName)) Gray
             New-ADReplicationSite -Name $ExchangeInstall_LocalizedStrings.AdSiteName -ErrorAction Ignore
@@ -471,7 +480,7 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
             $sourceDC = $sourceDC+"."+$domain
         }
         Log([string]::Format("Checking if server is ready for dcpromo.")) Gray
-        $dcReady = Check-DCPromo
+        $dcReady = CheckDCPromo
         while($dcReady -eq $false) {
             Start-Sleep -Seconds 30
             $dcReady = CheckDCPromo
