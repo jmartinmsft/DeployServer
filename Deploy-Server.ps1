@@ -902,7 +902,7 @@ switch($newInstallType){
             $sampleNetBIOS = $domain.Substring(0, $domain.IndexOf("."))
             $netBIOSName = (Read-Host "Please enter the NetBIOS name for the domain ($sampleNetBIOS) ").ToUpper()
         }
-        if($forestInstallType -eq 1) { $LogonInfo = Prepare-HostMachine
+        if($forestInstallType -eq 1) { $LogonInfo = PrepareHostMachine
             $domain = $LogonInfo.Domain
             $domainController = $LogonInfo.DomainController
             $UserName = $LogonInfo.UserName
@@ -1162,7 +1162,7 @@ while($deployServer -eq $true) {
                         if((Get-ADObject -LDAPFilter "(objectClass=msExchOrganizationContainer)" -SearchBase $configPartition -Server $domainController -Credential $credential)) {
                             ## Found an Exchange organization so an Exchange connection should be made
                             Write-Warning "Exchange is already present in the enviornment and you must connect prior to running this script"
-                            $ExchangeServer = Prepare-ExchangeConnect
+                            $ExchangeServer = PrepareExchangeConnect
                             Connect-Exchange
                         }
                         else {
