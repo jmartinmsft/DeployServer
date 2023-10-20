@@ -1600,7 +1600,7 @@ while($deployServer -eq $true) {
             $noExchange = $false
         }
         1{
-            if($null -eq $forestInstallType) {
+            if($null -eq $forestInstallType -and $forestInstallType -eq 1) {
                 $forestInstallType = CheckADForest
             }
             Log([string]::Format("Active Directory domain setup information needed.")) Yellow
