@@ -306,7 +306,7 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
                     2 { $forestMode = "WinThreshold" }
                 }
                 ## Create the new Active Directory forest
-                Log([string]::Format("Creating the new Active Directory forest  {0}.", $domain)) Yellow
+                Log([string]::Format("Creating the new Active Directory forest  {0}.", $ExchangeInstall_LocalizedStrings.AdDomain)) Yellow
                 Install-ADDSForest -DomainName $ExchangeInstall_LocalizedStrings.AdDomain -DomainMode $domainMode -ForestMode $forestMode -DomainNetbiosName $ExchangeInstall_LocalizedStrings.DomainNetBiosName -SafeModeAdministratorPassword $adSafeModePwd -InstallDns -Confirm:$false
             }
             1 { ## Add an additional domain controller to the forest
