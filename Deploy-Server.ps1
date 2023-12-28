@@ -30,7 +30,7 @@ param
 (
 [Parameter(Mandatory=$false)]   [switch]$Exchange,
 [Parameter(Mandatory=$false)]   [ipaddress]$DnsServer,
-[Parameter(Mandatory=$false)]   [pscredential]$credential,
+[Parameter(Mandatory=$false)]   [pscredential]$Credential,
 [Parameter(Mandatory=$false)]   [string]$ServerName,
 [Parameter(Mandatory=$false)]   [switch]$DisableIpv6,
 [Parameter(Mandatory=$false)]   [string]$ExchangeServer,
@@ -50,7 +50,7 @@ function LogToFile([string]$Details) {
 }
 
 function Log([string]$Details, [ConsoleColor]$Colour) {
-    if ($Colour -notlike $null)
+    if ([String]::IsNullOrEmpty($Colour))
     {
         $Colour = [ConsoleColor]::White
     }
@@ -167,14 +167,15 @@ function PrepareHostMachine {
     Log([string]::Format("Preparing the host machine.")) Gray
     ## Update DNS settings on VM host so it can communicate with the lab
     if($DnsServer -like $null) {
-        while($null -eq $DnsServer) {
-            $DnsServer = Test-IP(Read-HostWithColor "Enter the IP address for your lab DNS server: ")
+        while($null -eq $Script:DnsServer) {
+            $Script:DnsServer = Test-IP(Read-HostWithColor "Enter the IP address for your lab DNS server: ")
         }    
     }
+    else {$Script:DnsServer = $DnsServer}
     Log([string]::Format("Updating the DNS settings on the host machine.")) Gray
     $netIPConfig = Get-NetIPConfiguration | Where-Object {$null -ne $_.Ipv4DefaultGateway.NextHop}
     $Global:dnsServers = $netIPConfig.DNSServer | Where-Object {$_.AddressFamily -eq 2}
-    Set-DnsClientServerAddress -InterfaceIndex $netIPConfig.InterfaceIndex -ServerAddresses $DnsServer
+    Set-DnsClientServerAddress -InterfaceIndex $netIPConfig.InterfaceIndex -ServerAddresses $Script:DnsServer
 
     ## Ensure the AD PowerShell module is installed
     Log([string]::Format("Checking the host machine for prerequisites.")) Gray
@@ -196,8 +197,8 @@ function PrepareHostMachine {
             $domain = $credential.UserName.Substring($credential.UserName.IndexOf("@")+1)
             $validDomain =$false
             while($validDomain -eq $false) {
-                [string]$domainController = (Resolve-DnsName $domain -Type SOA -Server $DnsServer -ErrorAction Ignore).IP4Address
-                if($domainController -eq $DnsServer) {
+                [string]$domainController = (Resolve-DnsName $domain -Type SOA -Server $Script:DnsServer -ErrorAction Ignore).IP4Address
+                if($domainController -eq $Script:DnsServer) {
                     $validDomain = $true
                     if(CheckCredentials) {
                         $validUPN = $true
@@ -219,7 +220,7 @@ function PrepareHostMachine {
         }
     }
     LogVerbose([string]::Format("Obtaining domain controller for the domain."))
-    [string]$domainController = (Resolve-DnsName $domain -Type SRV -Server $DnsServer -ErrorAction Ignore).PrimaryServer
+    [string]$domainController = (Resolve-DnsName $domain -Type SRV -Server $Script:DnsServer -ErrorAction Ignore).PrimaryServer
     $Password = $credential.GetNetworkCredential().Password
 
     ## Adding hosts file entries to ensure proper name resolution
@@ -231,7 +232,7 @@ function PrepareHostMachine {
     ErrorReported "UpdateHostsFile"
     
     LogVerbose([string]::Format("Obtaining DNS records for domain controllers in the domain."))
-    $domainControllers = Resolve-DnsName -Name "_gc._tcp.$domain" -Type SRV -Server $DnsServer | Where-Object { $_.Name -notlike "_gc._tcp*" }
+    $domainControllers = Resolve-DnsName -Name "_gc._tcp.$domain" -Type SRV -Server $Script:DnsServer | Where-Object { $_.Name -notlike "_gc._tcp*" }
     foreach($dc in $domainControllers) {
         [string]$newLine = $dc.IPAddress + " " + $dc.Name; 
         try { 
@@ -453,9 +454,12 @@ function GetVMParentDisk {
         }
         $ParentDiskPath = $ParentDiskPath.Replace("\","\\")
         Add-Content -Path $serverVMFileName -Value ('VmParentVhdPath = ' + $ParentDiskPath)
-        return $true
+        #return $true
     }
-    else {return $false}
+    else {
+        GetVMBaseDisk
+        #return $false
+    }
 }
 function GetVMBaseDisk {
     ## Get the base VHD
@@ -533,7 +537,8 @@ function PrepareExchangeConnect {
         if($ExchangeServer -notlike "*.*") {
             $Error.Clear()
             $dnsHost = "$ExchangeServer.$domain"
-            $hostIP = (Resolve-DnsName -Name $dnsHost -Server $DnsServer).IPAddress
+            $hostIP = (Resolve-DnsName -Name $dnsHost -Server $Script:DnsServer).IPAddress
+            $error.Clear()
             try {
                 Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore
             }
@@ -547,8 +552,9 @@ function PrepareExchangeConnect {
         }
         else { 
             $dnsHost = $ExchangeServer 
-            Log([string]::Format("Using DNS server {0} to resolve the Exchange server {1}.", $DnsServer, $dnsHost)) DarkGray
-            $hostIP = (Resolve-DnsName -Name $dnsHost -Server $DnsServer).IPAddress
+            Log([string]::Format("Using DNS server {0} to resolve the Exchange server {1}.", $Script:DnsServer, $dnsHost)) DarkGray
+            $hostIP = (Resolve-DnsName -Name $dnsHost -Server $Script:DnsServer).IPAddress
+            $Error.Clear()
             try {
                 Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore
             }
@@ -653,7 +659,7 @@ function SkipDagCheck {
 }
 function CheckNewDeployment {
     ## If this is a new deployment of multiple servers we may not was to validate the DAG
-    $validDag = Skip-DagCheck
+    $validDag = SkipDagCheck
     if($validDag -eq $false) {
         CreateNewDAG 
     }
@@ -848,6 +854,7 @@ $ScriptDisclaimer = @"
 Write-Host $ScriptDisclaimer -ForegroundColor Yellow
 #endregion
 
+Add-Type -AssemblyName System.Windows.Forms
 $ScriptPath = Get-Location
 # Create an array to store all the VM server names
 $VmServers = New-Object System.Collections.ArrayList
@@ -982,9 +989,7 @@ while($deployServer -eq $true) {
 
     ## Creating a variable file to store VM information
     $serverVMFileName = CreateVMVariableFile
-    
-    Add-Type -AssemblyName System.Windows.Forms
-    
+        
     ## Check if ipV6 should be disabled
     if($DisableIpv6){
         Add-Content -Path $serverVarFile -Value ('IpV6 = 0')
@@ -1025,7 +1030,8 @@ while($deployServer -eq $true) {
                     while($vhdPath.Length -eq 0) {
                         $vhdPath = GetNewVMPath
                     }
-                    if(!(GetVMParentDisk)) { GetVMBaseDisk }
+                    #if(!(GetVMParentDisk)) { GetVMBaseDisk }
+                    GetVMParentDisk 
                     Add-Content -Path $serverVMFileName -Value ('VmVhdPath = ' + $vhdPath)
                     ## Prompt the user for an Exchange server to setup a remote PowerShell session
                     $generationResult = GetNewVMGeneration
@@ -1035,7 +1041,7 @@ while($deployServer -eq $true) {
                     Log([string]::Format("Getting IP settings to recover the server {0}.", $ServerName)) Gray
                     ## Add IP information into hosts file for name resolution
                     $dnsHost = "$ServerName.$domain"
-                    $hostIP = (Resolve-DnsName -Name $dnsHost -Server $DnsServer).IPAddress
+                    $hostIP = (Resolve-DnsName -Name $dnsHost -Server $Script:DnsServer).IPAddress
                     Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"
                     Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $ServerName"
 
@@ -1080,14 +1086,16 @@ while($deployServer -eq $true) {
                             $p = @()
                             $output = "DiskNumber,PartitionNumber,AccessPaths"
                             $output | Out-File "C:\Temp\DiskInfo.csv" -Force
-                            Get-Disk | Where-Object {$_.Number -gt 0} | ForEach-Object { $p = Get-Partition -DiskNumber $_.Number | Where-Object {$_.AccessPaths -ne $null} | Select-Object DiskNumber,PartitionNumber,AccessPaths}
-                            $p | foreach-object { 
-                                $diskNumber = $p.DiskNumber
-                                $partitionNumber = $p.PartitionNumber
-                                ForEach ($a in $p.AccessPaths) { 
-                                    if($a -notlike "*Volume{*") { 
-                                        $output = "$diskNumber,$partitionNumber,$a"
-                                        $output | Out-File "C:\Temp\DiskInfo.csv" -Append
+                            Get-Disk | Where-Object {$_.Number -ne $null -and $_.IsBoot -eq $false} | ForEach-Object {
+                                $p = Get-Partition -DiskNumber $_.Number | Where-Object {$_.AccessPaths -ne $null} | Select-Object DiskNumber,PartitionNumber,AccessPaths
+                                $p | foreach-object { 
+                                    $diskNumber = $p.DiskNumber
+                                    $partitionNumber = $p.PartitionNumber
+                                    ForEach ($a in $p.AccessPaths) { 
+                                        if($a -notlike "*Volume{*") { 
+                                            $output = "$diskNumber,$partitionNumber,$a"
+                                            $output | Out-File "C:\Temp\DiskInfo.csv" -Append
+                                        }
                                     }
                                 }
                             }
@@ -1095,7 +1103,7 @@ while($deployServer -eq $true) {
                         Invoke-Command -Session $session -ScriptBlock $scriptBlock
                         $scriptFiles = "\\$ServerName\c$\Temp"
                         New-PSDrive -Name "Script" -PSProvider FileSystem -Root $scriptFiles -Credential $credential | Out-Null
-                        Copy-Item -Path "Script:\DiskInfo.csv" -Destination "C:\Temp\$ServerName-DiskInfo.csv" -Force -ErrorAction Ignore
+                        Copy-Item -Path "Script:\DiskInfo.csv" -Destination "$ScriptPath\$ServerName-DiskInfo.csv" -Force -ErrorAction Ignore
                         Remove-PSDrive -Name Script
                         Disconnect-PSSession -Name ServerConfig | Out-Null
                         Remove-PSSession -Name ServerConfig | Out-Null
@@ -1193,7 +1201,7 @@ while($deployServer -eq $true) {
                 if($dnsHost -notlike "*$($domain)") { 
                     $dnsHost = "$ExchangeServer.$domain"
                 }
-                $hostIP = (Resolve-DnsName -Name $dnsHost -Server $DnsServer).IPAddress
+                $hostIP = (Resolve-DnsName -Name $dnsHost -Server $Script:DnsServer).IPAddress
                 try{ 
                     Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"  -ErrorAction Ignore
                 }
@@ -1320,7 +1328,7 @@ while($deployServer -eq $true) {
                                         $DagName = Read-HostWithColor "Enter the Database Availability Group name: "
                                         $validDag = ValidateDagName
                                         if($validDag -eq $false) {
-                                            $validDag = Skip-DagCheck
+                                            $validDag = SkipDagCheck
                                         }
                                     }
                                     Add-Content -Path $serverVarFile -Value ('DagName = ' + $DagName)
@@ -1374,16 +1382,18 @@ while($deployServer -eq $true) {
                     Add-Content -Path $serverVarFile -Value ('ExchangeRole = ' + $null)
                     ## Get the VHD disk information
                     Log([string]::Format("Determining VM disk settings for {0}.", $ServerName)) Gray
-                    [string]$vhdParentPath = (Get-VHD (Get-VMHardDiskDrive -VMName $ServerName)[0].Path).ParentPath
+                    #[string]$vhdParentPath = (Get-VHD (Get-VMHardDiskDrive -VMName $ServerName)[0].Path).ParentPath
+                    [string]$vhdParentPath = (Get-VHD (Get-VMHardDiskDrive -VMName $ServerName | Where-Object {$_.Path -like "*$ServerName*"}).Path).ParentPath
                     if($vhdParentPath.Length -gt 0) {
                         Log([string]::Format("Current configuration uses a parent disk.", $ServerName)) Yellow
-                        GetVMParentDisk
+                        #GetVMParentDisk
                     }
-                    else { ## Check current VM generation before prompting
+                    GetVMParentDisk
+                    #else { ## Check current VM generation before prompting
                         [int]$vmGen = (Get-VM $ServerName).Generation
                         Log([string]::Format("{0} is currently Generation {1}.", $ServerName, $vmGen)) Yellow
-                        GetVMBaseDisk 
-                    }
+                    #    GetVMBaseDisk 
+                    #}
                     ## Clearing Edge Sync credentials to allow server to be recovered that is part of an Edge subscription
                     Log([string]::Format("Checking for Edge subscription.")) Gray
                     $serverSite = (Get-ExchangeServer $ServerName).Site
@@ -1636,7 +1646,8 @@ while($deployServer -eq $true) {
             ## Prompt where to save the VHD for the VM
             $vhdPath = GetNewVMPath
             Add-Content -Path $serverVMFileName -Value ('VmVhdPath = ' + $vhdPath)
-            if(!(GetVMParentDisk)) { GetVMBaseDisk }
+            #if(!(GetVMParentDisk)) { GetVMBaseDisk }
+            GetVMParentDisk
             $generationResult = GetNewVMGeneration
             Add-Content -Path $serverVMFileName -Value ('VmGeneration = ' + $generationResult)
             ## And also add info for the server install
@@ -1668,7 +1679,8 @@ while($deployServer -eq $true) {
             ## Prompt where to save the VHD for the VM
             $vhdPath = GetNewVMPath
             Add-Content -Path $serverVMFileName -Value ('VmVhdPath = ' + $vhdPath)
-            if(!(GetVMParentDisk)) { GetVMBaseDisk }
+            #if(!(GetVMParentDisk)) { GetVMBaseDisk }
+            GetVMParentDisk
             $generationResult = GetNewVMGeneration
             Add-Content -Path $serverVMFileName -Value ('VmGeneration = ' + $generationResult)
             ## And also add info for the server install
@@ -1804,11 +1816,14 @@ foreach($v in $vmServers) {
             Log([string]::Format("Stopping {0} virtual machine.", $v)) Gray
             Stop-VM $v -Force -TurnOff
             Log([string]::Format("Updating VM disk configuration.")) Gray
-            $vmHDD = (Get-VMHardDiskDrive -VMName $v)[0]
-            [string]$vhdPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v)[0].Path).Path
-            [string]$vhdParentPath = $VM_LocalizedStrings.VmParentVhdPath
-            $vmDiskCL = $vmHDD[0].ControllerLocation
-            $vmDiskCN = $vmHDD[0].ControllerNumber
+            $vmHDD = (Get-VMHardDiskDrive -VMName $v | Where-Object {$_.Path -like "*$v.vhdx"})
+            #[string]$vhdPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v | Where-Object {$_.Path -like "*$v.vhdx"}).Path).Path
+            [string]$vhdPath = $vmHDD.Path
+            #if($null -ne $VM_LocalizedStrings.VmParentVhdPath){
+            #    [string]$vhdParentPath = $VM_LocalizedStrings.VmParentVhdPath
+            #}
+            $vmDiskCL = $vmHDD.ControllerLocation
+            $vmDiskCN = $vmHDD.ControllerNumber
             Log([string]::Format("Deleting the existing VHD file.")) Gray
             Remove-Item -Path $vhdPath -Force
             Log([string]::Format("Removing the orginal hard drive from the virtual machine {0}.", $v)) Gray
@@ -1823,8 +1838,9 @@ foreach($v in $vmServers) {
         $vmDvd | Set-VMDvdDrive -Path $VM_LocalizedStrings.ExchangeIsoPath #-ControllerNumber $vmDvd.ControllerNumber $vmDvd.ControllerLocation
     }
     ## VM disk configuration
-    if($vhdParentPath.Length -gt 0) {
-        New-VHD -ParentPath $vhdParentPath -Path $vhdPath -Differencing
+    #if($vhdParentPath.Length -gt 0) {
+    if($null -ne $VM_LocalizedStrings.VmParentVhdPath){
+        New-VHD -ParentPath $VM_LocalizedStrings.VmParentVhdPath -Path $vhdPath -Differencing
     }
     else {
         Log([string]::Format("Copying the base Windows VHD to the destination VHD path.")) Gray
