@@ -508,6 +508,13 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
                     }
                 }
         }
+        #Ensure server IP is the primary DNS server
+        $InterfaceIndex = (Get-NetIPAddress | Where-Object {$_.IPAddress -eq $ExchangeInstall_LocalizedStrings.IpAddress}).InterfaceIndex
+        $DnsServers = Get-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -AddressFamily IPv4
+        if($DnsServers.ServerAddresses[0] -ne $ExchangeInstall_LocalizedStrings.IpAddress){
+            Log([string]::Format("Updating DNS server addresses so that this server is primary DNS server.")) Yellow
+            Set-DnsClientServerAddress -InterfaceIndex $InterfaceIndex -ServerAddresses $ExchangeInstall_LocalizedStrings.IpAddress,$DnsServers.ServerAddresses[0] -ErrorAction Ignore | Out-Null
+        }
         Restart-Computer
     }
     2 {
