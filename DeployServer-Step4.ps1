@@ -98,7 +98,7 @@ function EnableExchangeExtendedProtection {
     Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/ecp"
     Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Allow -Location "Default Web Site/ews"
     Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Allow -Location "Default Web Site/Microsoft-Server-ActiveSync"
-    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/oab"
+    Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Allow -Location "Default Web Site/oab"
     Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/Powershell"
     Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/owa"
     Set-WebConfigurationProperty -Filter "//security/authentication/windowsAuthentication" -PSPath "IIS:" -Name "extendedProtection.TokenChecking" -Value Require -Location "Default Web Site/rpc"  
@@ -169,17 +169,25 @@ function InstallExch2019SU{
     }
 }
 function EnableHSTS {
-    Import-Module iisadministration
+    Import-Module IISAdministration
     Reset-IISServerManager -Confirm:$False
     Start-IISCommitDelay
-    $siteCollection = Get-IISConfigSection -SectionPath "system.applicationHost/sites" | Get-IISConfigCollection
-    $siteElement = Get-IISConfigCollectionElement -ConfigCollection $siteCollection -ConfigAttribute @{"name"="Default Web Site"}
-    $hstsElement = Get-IISConfigElement $siteElement -ChildElementName hsts
-    Set-IISConfigAttributeValue -ConfigElement $hstsElement -AttributeName enabled -AttributeValue $true
-    Set-IISConfigAttributeValue -ConfigElement $hstsElement -AttributeName 'max-age' -AttributeValue 31536000
-    Set-IISConfigAttributeValue -ConfigElement $hstsElement -AttributeName includeSubdomains -AttributeValue $true
+    switch($ExchangeInstall_LocalizedStrings.ExchangeVersion) {
+        2 {
+            $siteCollection = Get-IISConfigSection -SectionPath "system.applicationHost/sites" | Get-IISConfigCollection
+            $siteElement = Get-IISConfigCollectionElement -ConfigCollection $siteCollection -ConfigAttribute @{"name"="Default Web Site"}
+            $hstsElement = Get-IISConfigElement $siteElement -ChildElementName hsts
+            Set-IISConfigAttributeValue -ConfigElement $hstsElement -AttributeName enabled -AttributeValue $true
+            Set-IISConfigAttributeValue -ConfigElement $hstsElement -AttributeName 'max-age' -AttributeValue 31536000
+            Set-IISConfigAttributeValue -ConfigElement $hstsElement -AttributeName includeSubdomains -AttributeValue $true
+        }
+        1 {
+            $iisConfig = Get-IISConfigSection -SectionPath "system.webServer/httpProtocol" -CommitPath "Default Web Site" | Get-IISConfigCollection -CollectionName "customHeaders"
+            New-IISConfigCollectionElement -ConfigCollection $iisConfig -ConfigAttribute @{"name"="Strict-Transport-Security"; "value"="max-age=31536000; includeSubDomains";}
+        }
+    }
     Stop-IISCommitDelay
-    Remove-Module iisadministration
+    Remove-Module IISAdministration
 }
 function GetDomainControllers {
     ## Get one online domain controller for each site to confirm AD replication
