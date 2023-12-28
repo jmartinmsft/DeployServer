@@ -1816,12 +1816,8 @@ foreach($v in $vmServers) {
             Log([string]::Format("Stopping {0} virtual machine.", $v)) Gray
             Stop-VM $v -Force -TurnOff
             Log([string]::Format("Updating VM disk configuration.")) Gray
-            $vmHDD = (Get-VMHardDiskDrive -VMName $v | Where-Object {$_.Path -like "*$v.vhdx"})
-            #[string]$vhdPath = (Get-VHD (Get-VMHardDiskDrive -VMName $v | Where-Object {$_.Path -like "*$v.vhdx"}).Path).Path
-            [string]$vhdPath = $vmHDD.Path
-            #if($null -ne $VM_LocalizedStrings.VmParentVhdPath){
-            #    [string]$vhdParentPath = $VM_LocalizedStrings.VmParentVhdPath
-            #}
+            [string]$vhdPath = ((Get-VMFirmware $v).BootOrder | Where-Object {$_.Device -like "HardDiskDrive*"}).Device[0].Path
+            $vmHDD = Get-VMHardDiskDrive -VMName $v | Where-Object {$_.Path -eq $vhdPath}
             $vmDiskCL = $vmHDD.ControllerLocation
             $vmDiskCN = $vmHDD.ControllerNumber
             Log([string]::Format("Deleting the existing VHD file.")) Gray
