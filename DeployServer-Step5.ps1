@@ -351,8 +351,9 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
             #Set the minimum number of log files to retain. Don't want 10,000 on active or 100,000 on passive
             $RegistryPath = "HKLM:\Software\Microsoft\ExchangeServer\v15\BackupInformation"
             CheckAndAddRegistryPath -RegistryPath $RegistryPath
-            CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'LooseTruncation_MinCopiesToProtect' -Value 0 -PropertyType 'DWORD'
+            CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'LooseTruncation_MinCopiesToProtect' -Value 50 -PropertyType 'DWORD'
             CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'LooseTruncation_MinLogsToProtect' -Value 100 -PropertyType 'DWORD'
+            CheckAndAddRegistryKey -RegistryPath $RegistryPath -Name 'LooseTruncation_MinDiskFreeSpaceThresholdInMB' -Value 92160 -PropertyType 'DWORD'
         
             ## Finish Exchange configuration
             $DagName = $ExchangeInstall_LocalizedStrings.DagName
