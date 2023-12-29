@@ -2,10 +2,10 @@
 //***********************************************************************
 //
 // Deploy-Server.ps1
-// Modified 21 September 2023
+// Modified 29 December 2023
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20230921.1341
+// Version: v20231229.1641
 //Syntax for running this script:
 //
 // .\Deploy-Server.ps1
@@ -34,15 +34,17 @@ param
 [Parameter(Mandatory=$false)]   [string]$ServerName,
 [Parameter(Mandatory=$false)]   [switch]$DisableIpv6,
 [Parameter(Mandatory=$false)]   [string]$ExchangeServer,
+[Parameter(Mandatory=$false)]   [pscredential]$EdgeCredentials,
 [Parameter(Mandatory=$false)]   [string]$ExchangeIso,
 [Parameter(Mandatory=$false)]   [switch]$DifferencingDisk,
 [Parameter(Mandatory=$false)]   [string]$ParentDiskPath,
+[Parameter(Mandatory=$false)]   [string]$BaseVhdPath,
 [Parameter(Mandatory=$false)]   [switch]$ExtendedProtection,
 [Parameter(Mandatory=$false)]   [boolean]$More=$false,
 [Parameter(Mandatory=$false)]   [string]$LogFile="C:\Temp\DeployVM.log"
 )
 
-$script:ScriptVersion = "v20230921.1341"
+$script:ScriptVersion = "v20231229.1641"
 
 function LogToFile([string]$Details) {
 	if ( [String]::IsNullOrEmpty($LogFile) ) { return }
@@ -434,7 +436,7 @@ function GetNewVMPath {
 }
 
 function GetVMParentDisk {
-    if(!($DifferencingDisk)) {
+    if(!($DifferencingDisk) -and [string]::IsNullOrEmpty($BaseVhdPath)) {
         $yes = New-Object System.Management.Automation.Host.ChoiceDescription '&Yes', 'Yes'
         $no = New-Object System.Management.Automation.Host.ChoiceDescription '&No', 'No'
         $differencingOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
@@ -463,16 +465,19 @@ function GetVMParentDisk {
 }
 function GetVMBaseDisk {
     ## Get the base VHD
-    Log([string]::Format("Please select the base VHD image.")) Yellow
-    Start-Sleep -Seconds 2
-    while($serverVHD.Length -eq 0) {
-        $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the Exchange VHD"}
-        $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
-        $fileBrowser.ShowDialog()
-        [string]$serverVHD = $fileBrowser.FileName
+    if([string]::IsNullOrEmpty($BaseVhdPath) -or $null -eq (Get-Item $BaseVhdPath -ErrorAction Ignore).FullName) {
+        Log([string]::Format("Please select the base VHD image.")) Yellow
+        Start-Sleep -Seconds 2
+        $BaseVhdPath = $null
+        while($BaseVhdPath.Length -eq 0) {
+            $fileBrowser = New-Object System.Windows.Forms.OpenFileDialog -Property @{InitialDirectory="M:\VHDs"; Title="Select the Exchange VHD"}
+            $fileBrowser.Filter = "VHDX (*.vhdx)| *.vhdx"
+            $fileBrowser.ShowDialog()
+            [string]$BaseVhdPath = $fileBrowser.FileName
+        }
     }
-    $serverVHD = $serverVHD.Replace("\","\\")
-    Add-Content -Path $serverVMFileName -Value ('ServerVhdPath = ' + $serverVHD)    
+    $BaseVhdPath = $BaseVhdPath.Replace("\","\\")
+    Add-Content -Path $serverVMFileName -Value ('ServerVhdPath = ' + $BaseVhdPath)    
 }
 
 function GetNewVMGeneration {
@@ -1410,9 +1415,15 @@ while($deployServer -eq $true) {
                     $searchBase = (Get-ExchangeServer $ServerName).DistinguishedName
                     $searchBase = $searchBase.Substring($startChar)
                     Get-ADObject -SearchBase $searchBase -Filter 'cn -eq $ServerName' -SearchScope OneLevel -Properties msExchEdgeSyncCredential -Server $domainController -Credential $credential | Set-ADObject -Clear msExchEdgeSyncCredential -Server $domainController -Credential $credential
-                    $EdgeAdmin = Read-HostWithColor "Enter the admin username for the Edge server ($($_.Name): "
-                    $EdgePassword = Read-Host "Enter the admin password for the Edge server ($($_.Name)) " -AsSecureString
-                    $EdgePassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($EdgePassword))
+                    if($null -eq $EdgeCredentials) {
+                        $EdgeAdmin = Read-HostWithColor "Enter the admin username for the Edge server ($($_.Name): "
+                        $EdgePassword = Read-Host "Enter the admin password for the Edge server ($($_.Name)) " -AsSecureString
+                        $EdgePassword = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($EdgePassword))
+                    }
+                    else{
+                        $EdgeAdmin = $EdgeCredentials.GetNetworkCredential().UserName
+                        $EdgePassword = $EdgeCredentials.GetNetworkCredential().Password
+                    }
                     Add-Content -Path $serverVarFile -Value ('EdgeAdmin = ' + $EdgeAdmin)
                     Add-Content -Path $serverVarFile -Value ('EdgePassword = ' + $EdgePassword)
                 }
@@ -1733,7 +1744,7 @@ $thumb = $null
 $ipAddr = $null
 $DagName = $null
 $forestInstallType = $null
-$serverVHD = $null
+$BaseVhdPath = $null
 $vhdPath = $null
 $adSiteName = $null
 }
@@ -1834,7 +1845,6 @@ foreach($v in $vmServers) {
         $vmDvd | Set-VMDvdDrive -Path $VM_LocalizedStrings.ExchangeIsoPath #-ControllerNumber $vmDvd.ControllerNumber $vmDvd.ControllerLocation
     }
     ## VM disk configuration
-    #if($vhdParentPath.Length -gt 0) {
     if($null -ne $VM_LocalizedStrings.VmParentVhdPath){
         New-VHD -ParentPath $VM_LocalizedStrings.VmParentVhdPath -Path $vhdPath -Differencing
     }
