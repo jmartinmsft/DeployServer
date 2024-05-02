@@ -1599,6 +1599,7 @@ while($deployServer -eq $true) {
                 }
                 else {
                     Log([string]::Format("Failed to remove {0} from {1}. You can attempt to resolve the issue and try again later.",$ServerName, $DagName)) Red
+                    Log([string]::Format("The server {0} will be not be repaved.",$ServerName)) Yellow
                     ## Script failed to remove the server from the DAG so we are removing it from the VM list and deleting files
                     $vmServers.Remove($ServerName)
                     Remove-Item -Path $ScriptPath\$ServerName* -Force
