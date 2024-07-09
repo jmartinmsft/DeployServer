@@ -41,7 +41,7 @@ param
 [Parameter(Mandatory=$false)]   [string]$BaseVhdPath,
 [Parameter(Mandatory=$false)]   [switch]$ExtendedProtection,
 [Parameter(Mandatory=$false)]   [boolean]$More=$false,
-[Parameter(Mandatory=$false)]   [string]$LogFile="C:\Temp\DeployVM.log"
+[Parameter(Mandatory=$false)]   [string]$LogFile
 )
 
 $script:ScriptVersion = "v20231229.1641"
@@ -683,7 +683,7 @@ function CreateNewDAG {
     $witnessDirectoryValid = $false
     while($witnessDirectoryValid -eq $false) {
         $witnessDirectory = Read-HostWithColor "Enter the path for the witness directory (ex: C:\Witness\DAGName): "
-        if($string -match "^([a-zA-Z]:|\\[\w\.]+\\[\w.$]+)\\(?:[\w]+\\)*\w([\w.])+$") {
+        if($witnessDirectory -match "^([a-zA-Z]:|\\[\w\.]+\\[\w.$]+)\\(?:[\w]+\\)*\w([\w.])+$") {
             $witnessDirectoryValid = $true
             $witnessDirectory = $witnessDirectory.Replace("\","\\")
             Add-Content -Path $serverVarFile -Value ('WitnessDirectory = ' + $witnessDirectory)
@@ -865,6 +865,10 @@ $ScriptPath = Get-Location
 $VmServers = New-Object System.Collections.ArrayList
 # Create an array to store Exchange servers and version
 $ExchangeServers = New-Object System.Collections.ArrayList
+
+if([string]::IsNullOrEmpty($LogFile)){
+    $LogFile = "$($ScriptPath)\DeployVM-$((Get-Date).ToString("yyyyMMddhhmmss"))-Debug.log"
+}
 
 #Backup current hosts file
 $timeStamp = Get-Date -Format yyyyMMddHHmmss
@@ -1353,7 +1357,7 @@ while($deployServer -eq $true) {
                         $dagTypeOption = [System.Management.Automation.Host.ChoiceDescription[]]($yes, $no)
                         $dagType = $Host.UI.PromptForChoice("Server deployment script","Do you want to create the DAG without an administrative access point? (aka:IP-less)", $dagTypeOption, 0)
                         Add-Content -Path $serverVarFile -Value ('DagType = ' + $dagType)
-                        Create-NewDAG
+                        CreateNewDAG
                         if($dagType -eq 1) {
                             Get-DAGIPAddress
                         }
@@ -1630,7 +1634,7 @@ while($deployServer -eq $true) {
             $BSTR = [System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($adSafeModePwd)            
             $adSafeModePwd = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto($BSTR)
             Add-Content -Path $serverVarFile -Value ('AdSafeModePassword = ' + $adSafeModePwd)
-            if($null -eq $credential) {
+            if($null -eq $credential -and $forestInstallType -ne 0) {
                 ##Get a list of available AD sites
                 Set-Item WSMan:\localhost\Client\TrustedHosts $domainController -Force
                 $ScriptBlock = { Get-ADReplicationSite -Filter * | Format-Table Name }
