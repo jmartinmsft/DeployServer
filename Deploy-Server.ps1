@@ -1210,7 +1210,7 @@ while($deployServer -eq $true) {
                 if($dnsHost -notlike "*$($domain)") { 
                     $dnsHost = "$ExchangeServer.$domain"
                 }
-                $hostIP = (Resolve-DnsName -Name $dnsHost -Server $Script:DnsServer).IPAddress
+                $hostIP = (Resolve-DnsName -Name $dnsHost -Server $Script:DnsServer -ErrorAction Ignore).IPAddress
                 try{ 
                     Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"  -ErrorAction Ignore
                 }
@@ -1742,7 +1742,7 @@ if($anotherServerResult -eq 1) {
     $deployServer = $false
 }
 else {
-    $newInstallType = Get-NewServerType
+    $newInstallType = GetNewServerType
 }
 ## Clear variables before starting next server
 $thumb = $null
@@ -1752,6 +1752,8 @@ $forestInstallType = $null
 $BaseVhdPath = $null
 $vhdPath = $null
 $adSiteName = $null
+$adapterCheck = $true
+$ServerName = $null
 }
 
 ## Removing basic authentication from the PowerShell vDir
