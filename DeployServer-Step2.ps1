@@ -1,9 +1,9 @@
 ﻿<#
 // DeployServer-Step2.ps1
-// Modified 21 September 2023
+// Modified 22 November 2024
 // Last Modifier:  Jim Martin
 // Project Owner:  Jim Martin
-// Version: v20230921.1341
+// Version: v20241122.1427
 //
 // Script should automatically start when the virtual machine starts.
 // Syntax for running this script:
@@ -226,7 +226,8 @@ switch($ExchangeInstall_LocalizedStrings.ServerType) {
         if($vs2012Install) {
             ## Download and install Visual C++ Redistributable Package for Visual Studio 2012
             Log([string]::Format("Downloading Visual C++ Redistributable Package for Visual Studio 2012.")) Gray
-            $Url = "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe"
+            #$Url = "https://download.microsoft.com/download/1/6/B/16B06F60-3B20-4FF2-B699-5E9B7962F9AE/VSU_4/vcredist_x64.exe"
+            $Url = "https://download.microsoft.com/download/1/2/8/128E2E22-C1B9-44A4-BE2A-5859ED1D4592/rewrite_amd64_en-US.msi"
             $Path = "C:\Temp\vcredist_x64-2012.exe"
             $webClient = New-Object System.Net.WebClient
             $webClient.DownloadFile($url, $path)
