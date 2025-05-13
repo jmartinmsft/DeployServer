@@ -44,7 +44,7 @@ param
 [Parameter(Mandatory=$false)]   [string]$LogFile
 )
 
-$script:ScriptVersion = "v20231229.1641"
+$script:ScriptVersion = "v20250513.1012"
 
 function LogToFile([string]$Details) {
 	if ( [String]::IsNullOrEmpty($LogFile) ) { return }
@@ -199,7 +199,7 @@ function PrepareHostMachine {
             $domain = $credential.UserName.Substring($credential.UserName.IndexOf("@")+1)
             $validDomain =$false
             while($validDomain -eq $false) {
-                [string]$domainController = (Resolve-DnsName $domain -Type SOA -Server $Script:DnsServer -ErrorAction Ignore).IP4Address
+                [string]$domainController = (Resolve-DnsName $domain -Type SOA -Server $Script:DnsServer ).IP4Address
                 if($domainController -eq $Script:DnsServer) {
                     $validDomain = $true
                     if(CheckCredentials) {
@@ -222,7 +222,7 @@ function PrepareHostMachine {
         }
     }
     LogVerbose([string]::Format("Obtaining domain controller for the domain."))
-    [string]$domainController = (Resolve-DnsName $domain -Type SRV -Server $Script:DnsServer -ErrorAction Ignore).PrimaryServer
+    [string]$domainController = (Resolve-DnsName $domain -Type SRV -Server $Script:DnsServer ).PrimaryServer
     $Password = $credential.GetNetworkCredential().Password
 
     ## Adding hosts file entries to ensure proper name resolution
@@ -238,7 +238,7 @@ function PrepareHostMachine {
     foreach($dc in $domainControllers) {
         [string]$newLine = $dc.IPAddress + " " + $dc.Name; 
         try { 
-            Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value $newline -ErrorAction Ignore 
+            Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value $newline  
         }
         catch {}
         ErrorReported "UpdateHostsFile"
@@ -311,7 +311,7 @@ function GetServerInfo {
         1 { $IpAddress = $null
             while([String]::IsNullOrEmpty($IpAddress)) {
                 $IpAddress = Test-IP(Read-HostWithColor "Enter the server IP address: ")
-                if(Test-Connection $IpAddress -Count 1 -ErrorAction Ignore) {
+                if(Test-Connection $IpAddress -Count 1 ) {
                     Log([string]::Format("The IP address {0} is already in use.", $IpAddress)) Yellow
                     $IpAddress = $null
                 }
@@ -399,7 +399,7 @@ function GetNewVMSwitchName {
     $switchSelected = $false
     while($switchSelected -eq $false) {
         $vmSwitch = Read-HostWithColor "Please enter virtual switch name: "
-        if(Get-VMSwitch $vmSwitch -ErrorAction Ignore) {
+        if(Get-VMSwitch $vmSwitch ) {
             $switchSelected = $true
         }
     }
@@ -465,7 +465,7 @@ function GetVMParentDisk {
 }
 function GetVMBaseDisk {
     ## Get the base VHD
-    if([string]::IsNullOrEmpty($BaseVhdPath) -or $null -eq (Get-Item $BaseVhdPath -ErrorAction Ignore).FullName) {
+    if([string]::IsNullOrEmpty($BaseVhdPath) -or $null -eq (Get-Item $BaseVhdPath ).FullName) {
         Log([string]::Format("Please select the base VHD image.")) Yellow
         Start-Sleep -Seconds 2
         $BaseVhdPath = $null
@@ -499,7 +499,7 @@ function GetExchangeISO {
 }
 
 function CheckServerOnline {
-    if(Test-Connection $ServerName -ErrorAction Ignore -Count 1) { return $true }
+    if(Test-Connection $ServerName  -Count 1) { return $true }
     else { return $false }
 }
 
@@ -545,12 +545,12 @@ function PrepareExchangeConnect {
             $hostIP = (Resolve-DnsName -Name $dnsHost -Server $Script:DnsServer).IPAddress
             $error.Clear()
             try {
-                Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore
+                Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" 
             }
             catch {}
             ErrorReported "UpdateHostsFile"
             try {
-                Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $ExchangeServer" -ErrorAction Ignore
+                Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $ExchangeServer" 
             }
             catch {}
             ErrorReported "UpdateHostsFile"
@@ -561,13 +561,13 @@ function PrepareExchangeConnect {
             $hostIP = (Resolve-DnsName -Name $dnsHost -Server $Script:DnsServer).IPAddress
             $Error.Clear()
             try {
-                Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore
+                Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" 
             }
             catch {}
             ErrorReported "UpdateHostsFile"
             $dnsHost = $dnsHost.Substring(0, $dnsHost.IndexOf("."))
             try {
-                Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" -ErrorAction Ignore
+                Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost" 
             }
             catch {}
             ErrorReported "UpdateHostsFile"
@@ -583,7 +583,7 @@ function ConnectExchange {
         try {
             $ConnectionAttempt++
             Log([string]::Format("Connecting to Exchange remote PowerShell session on {0}.",$ExchangeServer)) Gray
-            Import-PSSession (New-PSSession -Name ExchangeShell -ConfigurationName Microsoft.Exchange -ConnectionUri https://$ExchangeServer/PowerShell -AllowRedirection -Authentication Basic -Credential $credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck) -ErrorAction Ignore -WarningAction Ignore) -AllowClobber -ErrorAction Ignore -WarningAction Ignore | Out-Null
+            Import-PSSession (New-PSSession -Name ExchangeShell -ConfigurationName Microsoft.Exchange -ConnectionUri https://$ExchangeServer/PowerShell -AllowRedirection -Authentication Basic -Credential $credential -SessionOption (New-PSSessionOption -SkipCACheck -SkipCNCheck)  -WarningAction Ignore) -AllowClobber  -WarningAction Ignore | Out-Null
             $ConnectedToExchange = $true
         }
         catch {
@@ -595,8 +595,8 @@ function ConnectExchange {
             Log([string]::Format("Unable to connect to an Exchange remote PowerShell session on {0}.",$ExchangeServer)) Yellow
             Log([string]::Format("Reverting DNS settings.")) Gray
             global:RevertDnsSettings
-            Remove-Item $ScriptPath\hosts-$timeStamp -Confirm:$False -ErrorAction Ignore
-            Remove-Item $ScriptPath\$serverName* -Confirm:$false -ErrorAction Ignore
+            Remove-Item $ScriptPath\hosts-$timeStamp -Confirm:$False 
+            Remove-Item $ScriptPath\$serverName* -Confirm:$false 
             exit
         }
     }
@@ -717,7 +717,7 @@ function GetDAGIPAddress {
             $ipCheck = Test-IP($dagIPAddress)
             ## Verify the IP address is not in use
             if($null -ne $ipCheck) {
-                if(Test-Connection $dagIPAddress -Count 1 -ErrorAction Ignore) {
+                if(Test-Connection $dagIPAddress -Count 1 ) {
                     Log([string]::Format("IP addresses provided already in use. Please try again.")) Yellow
                     $dagIPAddress = $null
                 }
@@ -807,7 +807,7 @@ function GetDomainControllers {
     $ADDomainControllers = New-Object System.Collections.ArrayList
     Get-ADDomainController -Filter * -Server $domainController -Credential $credential | ForEach-Object {
         if($sites -notcontains $_.Site) {
-            if(Test-Connection $_.HostName -Count 1 -ErrorAction Ignore) {
+            if(Test-Connection $_.HostName -Count 1 ) {
                 $sites.Add($_.Site) | Out-Null
                 $ADDomainControllers.Add($_.Hostname) |Out-Null
             }
@@ -950,11 +950,11 @@ while($deployServer -eq $true) {
         if([String]::IsNullOrEmpty($ServerName)) {
             [string]$ServerName = Read-HostWithColor "Enter the name of the server to deploy: "
         }
-        if(Get-Item "$ScriptPath\$ServerName*.psd1" -ErrorAction Ignore) {
-            Remove-Item "$ScriptPath\$ServerName*.psd1" -ErrorAction Ignore -Force -Confirm:$false
+        if(Get-Item "$ScriptPath\$ServerName*.psd1" ) {
+            Remove-Item "$ScriptPath\$ServerName*.psd1"  -Force -Confirm:$false
         }
-        if(Get-Item "$ScriptPath\$ServerName*.csv" -ErrorAction Ignore) {
-            Remove-Item "$ScriptPath\$ServerName*.csv" -ErrorAction Ignore -Force -Confirm:$false
+        if(Get-Item "$ScriptPath\$ServerName*.csv" ) {
+            Remove-Item "$ScriptPath\$ServerName*.csv"  -Force -Confirm:$false
         }
         #if this is the first server being deployed and it's a new AD forest, use it as the domain controller for all server deployments
         if($vmServers.Count -eq 0 -and $forestInstallType -eq 0) {
@@ -962,7 +962,7 @@ while($deployServer -eq $true) {
         }
         $serverOnline = $false
         ## Do not recover a server with multiple NICs, install process currently cannot handle that scenario
-        if(Get-VM $ServerName -ErrorAction Ignore) {
+        if(Get-VM $ServerName ) {
             Log([string]::Format("{0} already exists. Performing a recover server.",$ServerName)) Yellow
             $exInstallType = 1
             $vmAdapters = Get-VMNetworkAdapter -VMName $ServerName
@@ -1091,7 +1091,7 @@ while($deployServer -eq $true) {
                         ## Get disk information
                         Log([string]::Format("Getting disk information for {0}.",$ServerName)) Gray
                         $scriptBlock = {
-                            New-Item -ItemType Directory -Path C:\Temp -ErrorAction Ignore | Out-Null
+                            New-Item -ItemType Directory -Path C:\Temp  | Out-Null
                             $p = @()
                             $output = "DiskNumber,PartitionNumber,AccessPaths"
                             $output | Out-File "C:\Temp\DiskInfo.csv" -Force
@@ -1112,7 +1112,7 @@ while($deployServer -eq $true) {
                         Invoke-Command -Session $session -ScriptBlock $scriptBlock
                         $scriptFiles = "\\$ServerName\c$\Temp"
                         New-PSDrive -Name "Script" -PSProvider FileSystem -Root $scriptFiles -Credential $credential | Out-Null
-                        Copy-Item -Path "Script:\DiskInfo.csv" -Destination "$ScriptPath\$ServerName-DiskInfo.csv" -Force -ErrorAction Ignore
+                        Copy-Item -Path "Script:\DiskInfo.csv" -Destination "$ScriptPath\$ServerName-DiskInfo.csv" -Force 
                         Remove-PSDrive -Name Script
                         Disconnect-PSSession -Name ServerConfig | Out-Null
                         Remove-PSSession -Name ServerConfig | Out-Null
@@ -1174,7 +1174,7 @@ while($deployServer -eq $true) {
                     #if($forestInstallType -ne 0 -and $domainController -ne $null) {                    }
                     else {
                         ## Try to locate an Exchange organization in Active Directory
-                        $adDomain = (Get-ADDomain -Server $domainController -Credential $credential -ErrorAction Ignore).DistinguishedName
+                        $adDomain = (Get-ADDomain -Server $domainController -Credential $credential ).DistinguishedName
                         $configPartition = "CN=Configuration,$adDomain"
                         if((Get-ADObject -LDAPFilter "(objectClass=msExchOrganizationContainer)" -SearchBase $configPartition -Server $domainController -Credential $credential)) {
                             ## Found an Exchange organization so an Exchange connection should be made
@@ -1200,7 +1200,7 @@ while($deployServer -eq $true) {
                 }
             
             }
-            elseif(!([String]::IsNullOrEmpty($ExchangeServer))) {
+            elseif(([String]::IsNullOrEmpty($ExchangeServer))) {
                 $ExchangeServer = PrepareExchangeConnect
                 ConnectExchange
             }
@@ -1210,14 +1210,14 @@ while($deployServer -eq $true) {
                 if($dnsHost -notlike "*$($domain)") { 
                     $dnsHost = "$ExchangeServer.$domain"
                 }
-                $hostIP = (Resolve-DnsName -Name $dnsHost -Server $Script:DnsServer -ErrorAction Ignore).IPAddress
+                $hostIP = (Resolve-DnsName -Name $dnsHost -Server $Script:DnsServer ).IPAddress
                 try{ 
-                    Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"  -ErrorAction Ignore
+                    Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $dnsHost"  
                 }
                 catch {}
                 ErrorReported "UpdateHostsFile"
                 try{ 
-                    Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $ExchangeServer" -ErrorAction Ignore
+                    Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "$hostIP $ExchangeServer" 
                 }
                 catch {}
                 ErrorReported "UpdateHostsFile"
@@ -1558,20 +1558,20 @@ while($deployServer -eq $true) {
                 Log([string]::Format("Removing server {0} from the DAG {1}.",$ServerName, $DagName)) Gray
                 if($serverOnline -eq $true) {
                     try{
-                        Remove-DatabaseAvailabilityGroupServer $DagName -MailboxServer $ServerName -DomainController $domainController -Confirm:$False -ErrorAction Ignore
+                        Remove-DatabaseAvailabilityGroupServer $DagName -MailboxServer $ServerName -DomainController $domainController -Confirm:$False 
                     }
                     catch{}
                     ErrorReported "RemoveServerFromDag"
                 }
                 else {
                     try {
-                        Remove-DatabaseAvailabilityGroupServer $DagName -MailboxServer $ServerName -DomainController $domainController -ConfigurationOnly -Confirm:$False -ErrorAction Ignore
+                        Remove-DatabaseAvailabilityGroupServer $DagName -MailboxServer $ServerName -DomainController $domainController -ConfigurationOnly -Confirm:$False 
                         Start-Sleep -Seconds 5
                     }
                     catch {}
                     ErrorReported "RemoveServerFromDag"
                     Log([string]::Format("Removing server {0} from the windows cluster.",$ServerName)) Gray
-                    $scriptBlock = { Param ($param1) Remove-ClusterNode -Name $param1 -Force -ErrorAction Ignore }
+                    $scriptBlock = { Param ($param1) Remove-ClusterNode -Name $param1 -Force  }
                     try {
                         Invoke-Command -ScriptBlock $scriptBlock -ComputerName $ExchangeServer -Credential $credential -ArgumentList $ServerName
                     }
@@ -1591,7 +1591,7 @@ while($deployServer -eq $true) {
                         $serverFound = $true
                         Log([string]::Format("Checking for {0} in {1} on {2}.", $ServerName, $DagName, $_)) Gray
                         while($serverFound -eq $true) {
-                            if((Get-DatabaseAvailabilityGroup $DagName -DomainController $_ -ErrorAction Ignore).Servers -contains $serverName) {
+                            if((Get-DatabaseAvailabilityGroup $DagName -DomainController $_ ).Servers -contains $serverName) {
                                 SyncAdConfigPartition
                                 Start-Sleep -Seconds 10
                             }
@@ -1617,7 +1617,7 @@ while($deployServer -eq $true) {
             if($thumb.Length -gt 1) {
                 ## Export the Exchange certificate
                 Log([string]::Format("Exporting current Exchange certificate with thumbprint {0} from {1}.", $thumb, $certServer)) Gray
-                if(Get-Item "$ScriptPath\$ServerName-Exchange.pfx" -ErrorAction Ignore) { 
+                if(Get-Item "$ScriptPath\$ServerName-Exchange.pfx" ) { 
                     Remove-Item "$ScriptPath\$ServerName-Exchange.pfx" -Confirm:$False -Force
                 }
                 $cert = Export-ExchangeCertificate -Server $ExchangeServer -Thumbprint $thumb -BinaryEncoded -Password (ConvertTo-SecureString -String 'Pass@word1' -AsPlainText -Force)
@@ -1757,16 +1757,16 @@ $ServerName = $null
 }
 
 ## Removing basic authentication from the PowerShell vDir
-if(!([String]::IsNullOrEmpty($ExchangeServer))) {
-    Log([string]::Format("Removing the Exchange remote PowerShell session.")) Gray
-    ## Disconnect from the Exchange remote PowerShell session
-    Remove-PSSession -Name ExchangeShell
+if(-not([String]::IsNullOrEmpty($ExchangeServer))) {
     Log([string]::Format("Disabling basic authentication on the PowerShell vDir.")) Gray
-    $session = New-PSSession -Credential $credential -ComputerName $ExchangeServer -Name DisableBasic
+    $session = New-PSSession -Credential $credential -ComputerName $ExchangeServer -Name DisableBasic -ErrorAction SilentlyContinue
     $scriptBlock = { C:\Windows\system32\inetsrv\appcmd set config "Default Web Site/PowerShell/" /section:basicAuthentication /enabled:false /commit:apphost }
     Invoke-Command -Session $session -ScriptBlock $scriptBlock | Out-Null
     Disconnect-PSSession -Name DisableBasic | Out-Null
     Remove-PSSession -Name DisableBasic | Out-Null
+    Log([string]::Format("Removing the Exchange remote PowerShell session.")) Gray
+    ## Disconnect from the Exchange remote PowerShell session
+    Remove-PSSession -Name ExchangeShell
 }
 
 ## Revert the TrustedHosts list
@@ -1805,7 +1805,7 @@ foreach($v in $vmServers) {
     
     ## Check to ensure no VM currently exists with the same name
     if($exInstallType -ne 1) {
-        if(Get-VM -Name $v -ErrorAction Ignore) {
+        if(Get-VM -Name $v ) {
             Log([string]::Format("Found an existing VM present for {0}.", $v)) Gray
             Log([string]::Format("Removing the existing VM for {0}.", $v)) Gray
             Remove-VM -Name $v
@@ -1878,11 +1878,11 @@ foreach($v in $vmServers) {
     }
     if(!(Get-Item "$($vhd):\Temp" -ErrorAction SilentlyContinue)) {New-Item -Path "$($vhd):\" -Name Temp -ItemType Directory}
     $ServerTemp = "$($Vhd):\Temp"
-    Move-Item $ScriptPath\$v* -Destination $ServerTemp -Force -Confirm:$False -ErrorAction Ignore
-    Copy-Item $ScriptPath\Deploy*.ps1 -Destination $ServerTemp -Force -Confirm:$False -ErrorAction Ignore
-    Copy-Item $ScriptPath\Start-Setup.ps1 -Destination $ServerTemp -Force -Confirm:$False -ErrorAction Ignore
+    Move-Item $ScriptPath\$v* -Destination $ServerTemp -Force -Confirm:$False
+    Copy-Item $ScriptPath\Deploy*.ps1 -Destination $ServerTemp -Force -Confirm:$False
+    Copy-Item $ScriptPath\Start-Setup.ps1 -Destination $ServerTemp -Force -Confirm:$False
     Dismount-VHD -Path $vhdPath
     Log([string]::Format("Starting the virtual machine {0}.", $v)) Gray
     Start-VM -Name $v
-    Remove-Item $ScriptPath\hosts-$timeStamp -Confirm:$False -ErrorAction Ignore
+    Remove-Item $ScriptPath\hosts-$timeStamp -Confirm:$False
 }
